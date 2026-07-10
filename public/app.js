@@ -229,6 +229,8 @@ function renderGrid() {
     grid.innerHTML = '<p class="empty-note">No famous ballots match this combination of grievances. Loosen a filter — then vote anyway.</p>';
     const pagerEl = $('#pager');
     if (pagerEl) pagerEl.innerHTML = '';
+    const annEl = $('#pagerAnnounce');
+    if (annEl) annEl.textContent = '';
     return;
   }
 
@@ -272,10 +274,16 @@ function stampStatusText(times) {
 
 function renderPager(totalSheets) {
   const pager = $('#pager');
-  if (totalSheets <= 1) { pager.innerHTML = ''; return; }
+  const announce = $('#pagerAnnounce');
+  if (totalSheets <= 1) {
+    pager.innerHTML = '';
+    if (announce) announce.textContent = '';
+    return;
+  }
+  if (announce) announce.textContent = `Sheet ${currentSheet} of ${totalSheets}`;
   const numbers = totalSheets <= 8
     ? Array.from({ length: totalSheets }, (_, i) =>
-        `<button class="sheet-no${i + 1 === currentSheet ? ' is-current' : ''}" data-sheet="${i + 1}">${i + 1}</button>`
+        `<button class="sheet-no${i + 1 === currentSheet ? ' is-current' : ''}" data-sheet="${i + 1}" aria-label="Sheet ${i + 1}"${i + 1 === currentSheet ? ' aria-current="page"' : ''}>${i + 1}</button>`
       ).join('')
     : `<span>Sheet ${currentSheet} of ${totalSheets}</span>`;
   pager.innerHTML = `
@@ -288,8 +296,14 @@ function renderPager(totalSheets) {
 $('#pager').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sheet]');
   if (!btn || btn.disabled) return;
+  const label = btn.getAttribute('aria-label'); // "Previous sheet" | "Next sheet" | null
   currentSheet = Number(btn.dataset.sheet);
   renderGrid();
+  const pager = $('#pager');
+  const target = (label && pager.querySelector(`button[aria-label="${label}"]:not([disabled])`)) ||
+    pager.querySelector('.sheet-no.is-current') ||
+    pager.querySelector('button[data-sheet]:not([disabled])');
+  if (target) target.focus({ preventScroll: true });
   $('#ballot').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
