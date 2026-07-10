@@ -770,3 +770,37 @@ body:has(.legal) { background: var(--desk); }
 @media (min-width: 900px) {
   .f-note { flex-basis: auto; margin-left: auto; text-align: right; max-width: 300px; }
 }
+
+/* ---------- ballot pager ---------- */
+
+.pager {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  padding: 12px 26px 16px;
+  border-bottom: 1px solid var(--ledger);
+}
+.pager:empty { display: none; }
+.pager button {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  background: none;
+  border: none;
+  color: var(--ink);
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+.pager button:hover:not(:disabled) { color: var(--red); }
+.pager button:disabled { color: var(--ledger); cursor: default; }
+.pager .sheet-no.is-current { color: var(--red); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+
+/* representative stamp on re-rendered, already-canceled rows */
+.stamp-impression.is-static { animation: none; opacity: 0.88; }

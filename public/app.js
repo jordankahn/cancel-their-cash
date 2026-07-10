@@ -232,7 +232,11 @@ function renderGrid() {
     return;
   }
 
-  grid.innerHTML = list.map((c) => `
+  const totalSheets = Math.ceil(list.length / SHEET_SIZE);
+  if (currentSheet > totalSheets) currentSheet = totalSheets;
+  const page = list.slice((currentSheet - 1) * SHEET_SIZE, currentSheet * SHEET_SIZE);
+
+  grid.innerHTML = page.map((c) => `
     <article class="brow" data-id="${c.id}">
       <div class="brow-main">
         <button class="oval${myStamps.has(c.id) ? ' is-filled' : ''}" data-id="${c.id}"
@@ -245,7 +249,7 @@ function renderGrid() {
       </div>
       <p class="brow-count">Cancellations on file <span class="dots"></span> <strong data-count>${fmt(c.count)}</strong></p>
       <div class="brow-actions" ${myStamps.has(c.id) ? '' : 'hidden'}>
-        <p class="brow-status" data-status>Status: pending until you actually vote.</p>
+        <p class="brow-status" data-status>${stampStatusText(myStamps.get(c.id) || 0)}</p>
         <div class="brow-links">
           <a class="act-register" href="https://vote.gov/register/${c.state.toLowerCase()}" target="_blank" rel="noopener">Register to vote →</a>
           <button type="button" data-cert>Certificate</button>
@@ -253,9 +257,41 @@ function renderGrid() {
           <button type="button" data-again>Stamp again</button>
         </div>
       </div>
+      ${myStamps.has(c.id) ? '<span class="stamp-impression is-static" style="--rot:-6deg;right:10px;top:12px">CANCELED</span>' : ''}
     </article>
   `).join('');
+
+  renderPager(totalSheets);
 }
+
+function stampStatusText(times) {
+  return times <= 1
+    ? 'Status: pending until you actually vote.'
+    : `Stamped ×${times}. It only had 1 vote — ${times - 1} filed under SPITE, SURPLUS. Still pending until you vote.`;
+}
+
+function renderPager(totalSheets) {
+  const pager = $('#pager');
+  if (totalSheets <= 1) { pager.innerHTML = ''; return; }
+  const numbers = totalSheets <= 8
+    ? Array.from({ length: totalSheets }, (_, i) =>
+        `<button class="sheet-no${i + 1 === currentSheet ? ' is-current' : ''}" data-sheet="${i + 1}">${i + 1}</button>`
+      ).join('')
+    : `<span>Sheet ${currentSheet} of ${totalSheets}</span>`;
+  pager.innerHTML = `
+    <button data-sheet="${currentSheet - 1}" ${currentSheet === 1 ? 'disabled' : ''} aria-label="Previous sheet">◀</button>
+    ${numbers}
+    <button data-sheet="${currentSheet + 1}" ${currentSheet === totalSheets ? 'disabled' : ''} aria-label="Next sheet">▶</button>
+  `;
+}
+
+$('#pager').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-sheet]');
+  if (!btn || btn.disabled) return;
+  currentSheet = Number(btn.dataset.sheet);
+  renderGrid();
+  $('#ballot').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 $('#celebGrid').addEventListener('click', (e) => {
   const oval = e.target.closest('.oval');
@@ -290,9 +326,7 @@ async function cancelVote(id) {
   const actions = row.querySelector('.brow-actions');
   actions.hidden = false;
   const status = row.querySelector('[data-status]');
-  status.textContent = times === 1
-    ? 'Status: pending until you actually vote.'
-    : `Stamped ×${times}. It only had 1 vote — ${times - 1} filed under SPITE, SURPLUS. Still pending until you vote.`;
+  status.textContent = stampStatusText(times);
 
   try {
     const res = await fetch('/api/cancel', {
