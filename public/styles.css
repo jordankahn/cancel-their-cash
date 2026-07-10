@@ -717,3 +717,56 @@ body:has(.legal) { background: var(--desk); }
   border: 1.5px solid var(--rule);
   box-shadow: 0 18px 50px rgba(0,0,0,0.45);
 }
+
+/* ---------- ballot filter row ---------- */
+
+.filter-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  flex-wrap: wrap;
+  padding: 12px 26px 14px;
+  border-bottom: 1px solid var(--ledger);
+}
+.f-field { min-width: 150px; }
+.f-field label {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 2px;
+}
+.f-field select, .f-field input {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px dotted var(--ink);
+  padding: 4px 2px 3px;
+  border-radius: 0;
+}
+.f-field select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' fill='none' stroke='%2355534f' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  padding-right: 24px;
+  cursor: pointer;
+}
+.f-field input::placeholder { color: var(--ink-60); opacity: 0.7; letter-spacing: 0.06em; }
+.f-search { flex: 1; min-width: 190px; }
+.f-note {
+  flex-basis: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  margin-top: 2px;
+}
+@media (min-width: 900px) {
+  .f-note { flex-basis: auto; margin-left: auto; text-align: right; max-width: 300px; }
+}

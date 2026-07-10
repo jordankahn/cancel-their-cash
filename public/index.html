@@ -64,10 +64,6 @@
 
     <div class="intake-form">
       <div class="fill-line">
-        <label for="statePick">State of grievance</label>
-        <select id="statePick" aria-label="Select your state"></select>
-      </div>
-      <div class="fill-line">
         <label for="filedBy">Filed by <span class="opt">(first name, optional)</span></label>
         <input id="filedBy" type="text" maxlength="20" placeholder="Anonymous Voter" autocomplete="off">
       </div>
@@ -90,7 +86,21 @@
   </section>
 
   <div class="part-bar" id="ballot">Part 1 — Cancelable residents on file</div>
-  <p class="part-note" id="rosterSub">Reported home states. We don't know how anyone votes. Neither do you. That's the point.</p>
+  <div class="filter-row">
+    <div class="f-field">
+      <label for="statePick">State</label>
+      <select id="statePick" aria-label="Select your state"></select>
+    </div>
+    <div class="f-field">
+      <label for="tagPick">Category</label>
+      <select id="tagPick" aria-label="Filter by category"></select>
+    </div>
+    <div class="f-field f-search">
+      <label for="docketSearch">Search</label>
+      <input id="docketSearch" type="search" placeholder="SEARCH THE DOCKET…" autocomplete="off" aria-label="Search names">
+    </div>
+    <p class="f-note">Reported home states. We don't know how anyone votes. Neither do you.</p>
+  </div>
 
   <section class="ballot-grid" id="celebGrid"></section>
 

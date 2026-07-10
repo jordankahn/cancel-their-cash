@@ -22,6 +22,10 @@ const fmt = (n) => Number(n).toLocaleString('en-US');
 
 let ROSTER = [];
 let currentState = localStorage.getItem('ctv-state') || 'ALL';
+let currentTag = 'ALL';
+let searchQuery = '';
+let currentSheet = 1;
+const SHEET_SIZE = 12;
 const myStamps = new Map(); // celeb id -> times stamped this session
 let boardMode = 'leader';
 
@@ -47,6 +51,7 @@ async function boot() {
     api('/api/roster'), api('/api/stats'), api('/api/feed?limit=25'),
   ]);
   ROSTER = roster.celebs;
+  buildFilters();
   renderStats(stats);
   renderGrid();
   renderBoard();
@@ -71,7 +76,7 @@ async function refreshLive() {
 
 function buildStatePicker() {
   const sel = $('#statePick');
-  sel.innerHTML = '<option value="ALL">All states — browse the full docket</option>' +
+  sel.innerHTML = '<option value="ALL">All states</option>' +
     Object.entries(STATES)
       .map(([code, name]) => `<option value="${code}">${name}</option>`)
       .join('');
@@ -79,8 +84,25 @@ function buildStatePicker() {
   sel.addEventListener('change', () => {
     currentState = sel.value;
     localStorage.setItem('ctv-state', currentState);
+    currentSheet = 1;
     renderGrid();
-    $('#ballot').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function buildFilters() {
+  const tags = [...new Set(ROSTER.map((c) => c.tag))].sort();
+  const tagSel = $('#tagPick');
+  tagSel.innerHTML = '<option value="ALL">All categories</option>' +
+    tags.map((t) => `<option value="${t}">${t.charAt(0) + t.slice(1).toLowerCase()}</option>`).join('');
+  tagSel.addEventListener('change', () => {
+    currentTag = tagSel.value;
+    currentSheet = 1;
+    renderGrid();
+  });
+  $('#docketSearch').addEventListener('input', (e) => {
+    searchQuery = e.target.value.trim().toLowerCase();
+    currentSheet = 1;
+    renderGrid();
   });
 }
 
@@ -185,22 +207,28 @@ async function renderSnapshot() {
 // Ballot grid
 // ---------------------------------------------------------------------------
 
+function filteredRoster() {
+  return ROSTER.filter((c) =>
+    (currentState === 'ALL' || c.state === currentState) &&
+    (currentTag === 'ALL' || c.tag === currentTag) &&
+    (!searchQuery || c.name.toLowerCase().includes(searchQuery))
+  ).sort((a, b) => b.count - a.count);
+}
+
 function renderGrid() {
   const grid = $('#celebGrid');
-  const list = (currentState === 'ALL'
-    ? [...ROSTER]
-    : ROSTER.filter((c) => c.state === currentState)
-  ).sort((a, b) => b.count - a.count);
+  const list = filteredRoster();
 
-  $('#ballot').textContent = currentState === 'ALL'
-    ? `Part 1 — Cancelable residents on file (${list.length})`
-    : `Part 1 — Cancelable residents of ${STATES[currentState]} (${list.length} on file)`;
-  $('#rosterSub').textContent = currentState === 'ALL'
-    ? "Reported home states. We don't know how anyone votes. Neither do you. That's the point."
-    : `These ballots share your races: Senate, House, governor. Fill in an oval to file your grievance.`;
+  const parts = [];
+  parts.push(currentState === 'ALL' ? 'Cancelable residents on file' : `Cancelable residents of ${STATES[currentState]}`);
+  if (currentTag !== 'ALL') parts.push(currentTag);
+  if (searchQuery) parts.push(`“${searchQuery}”`);
+  $('#ballot').textContent = `Part 1 — ${parts.join(' · ')} (${list.length} on file)`;
 
   if (!list.length) {
-    grid.innerHTML = '<p class="empty-note">No famous ballots on file for this state yet. Cancel someone in spirit — then vote anyway.</p>';
+    grid.innerHTML = '<p class="empty-note">No famous ballots match this combination of grievances. Loosen a filter — then vote anyway.</p>';
+    const pagerEl = $('#pager');
+    if (pagerEl) pagerEl.innerHTML = '';
     return;
   }
 
