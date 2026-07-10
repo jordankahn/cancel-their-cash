@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cancel Their Vote — Official Cancellation Ballot</title>
+<meta name="description" content="Pledge to cancel out a famous person's vote in your state. Then actually go vote, or your cancellation is just a wish.">
+<meta property="og:title" content="Cancel Their Vote">
+<meta property="og:description" content="Fill in the oval. Cancel a famous ballot. Legally. By voting.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f7f4ea'/%3E%3Cellipse cx='50' cy='50' rx='34' ry='20' fill='none' stroke='%2317161a' stroke-width='8'/%3E%3Cellipse cx='50' cy='50' rx='20' ry='10' fill='%23b5271d'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<main class="page">
+
+  <header class="bhead">
+    <div class="bhead-title">
+      <h1>Official Cancellation Ballot</h1>
+      <p class="bhead-sub">General Midterm Election · Tuesday, November 3, 2026</p>
+    </div>
+    <div class="bhead-meta">
+      <span>Form CTV-26</span>
+      <span>Bureau of Ballot Grievances</span>
+      <span>Unofficial · Non-binding · Petty</span>
+    </div>
+  </header>
+
+  <div class="wire" aria-label="Recent cancellations">
+    <span class="wire-label">CANCELLATION WIRE</span>
+    <div class="wire-clip"><div class="wire-track" id="tickerTrack"></div></div>
+  </div>
+
+  <div class="specimen" aria-hidden="true">Specimen · Not an actual ballot</div>
+
+  <section class="intake">
+    <div class="instructions">
+      <h2>Instructions to Cancelers</h2>
+      <ol>
+        <li>Every ballot in America counts exactly once — famous, rich, loud, or yours. To
+        &ldquo;cancel&rdquo; a vote is to show up with the opposite one. That is the entire
+        mechanism. It is also the law of arithmetic.</li>
+        <li>To cancel, completely fill in the oval <span class="oval-demo" aria-hidden="true"></span>
+        beside the name. Use ink. Spite is an acceptable ink.</li>
+        <li>A famous vote can only be canceled once. Additional cancellations are accepted
+        and filed under <em>Spite, Surplus</em>.</li>
+        <li>Your cancellation remains <strong>PENDING</strong> until you cast an actual
+        ballot. A cancellation without a ballot is a birthday wish.</li>
+      </ol>
+    </div>
+
+    <div class="intake-form">
+      <div class="fill-line">
+        <label for="statePick">State of grievance</label>
+        <select id="statePick" aria-label="Select your state"></select>
+      </div>
+      <div class="fill-line">
+        <label for="filedBy">Filed by <span class="opt">(first name, optional)</span></label>
+        <input id="filedBy" type="text" maxlength="20" placeholder="Anonymous Voter" autocomplete="off">
+      </div>
+      <dl class="tallies">
+        <div class="tally"><dt>Cancellations on file</dt><dd id="statTotal">0</dd></div>
+        <div class="tally"><dt>Most-canceled American</dt><dd id="statTop" class="tally-name">—</dd></div>
+        <div class="tally"><dt>States covered</dt><dd id="statStates">0</dd></div>
+        <div class="tally"><dt>Votes literally changed</dt><dd>0<span class="tally-foot">unless you vote</span></dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <div class="part-bar" id="rosterBar">Part 1 — Cancelable residents on file</div>
+  <p class="part-note" id="rosterSub">Reported home states. We don't know how anyone votes. Neither do you. That's the point.</p>
+
+  <section class="ballot-grid" id="celebGrid"></section>
+
+  <div class="part-bar">Part 2 — Unofficial returns <span class="part-bar-right">51 of 51 states reporting · 0% of anything legally affected</span></div>
+
+  <section class="returns">
+    <div class="table-tabs" role="tablist">
+      <button class="ttab is-active" id="tabLeader" role="tab" aria-selected="true">Table A · Most canceled, all-time</button>
+      <button class="ttab" id="tabTrend" role="tab" aria-selected="false">Table B · Trending, last 24 hours</button>
+    </div>
+    <ol class="rtable" id="boardList"></ol>
+  </section>
+
+  <div class="part-bar">Part 3 — Notes on methodology</div>
+
+  <section class="notes">
+    <div class="note">
+      <h3>¹ On &ldquo;canceling&rdquo;</h3>
+      <p>Votes don't cancel; they count, one each. But if you were going to sit this
+      one out and someone on this form wasn't, they were about to out-vote you 1&ndash;0.
+      Voting makes it 1&ndash;1. That's the whole bit.</p>
+    </div>
+    <div class="note">
+      <h3>² On the surplus</h3>
+      <p>When 48,000 people cancel one billionaire's single vote, 47,999 cancellations
+      are surplus. The Bureau redirects surplus spite toward the only thing it's good
+      for: getting you to the polls.</p>
+    </div>
+    <div class="note">
+      <h3>³ On states</h3>
+      <p>Midterms are state business — Senate seats, governors, the House. Your ballot
+      only shares races with people registered in <em>your</em> state. That's why the
+      form asks. It's the only personal question on it.</p>
+    </div>
+    <div class="note">
+      <h3>⁴ On follow-through</h3>
+      <p>Registration takes two minutes at
+      <a href="https://vote.gov" target="_blank" rel="noopener">vote.gov</a>. Make a plan:
+      when, where, how you're getting there. Voters with a plan actually go. That's the
+      part of this that isn't a joke.</p>
+    </div>
+  </section>
+
+  <footer class="fine-print">
+    <p><strong>The fine print.</strong> This is satire with a turnout problem to solve. No person
+    named on this form endorses, sponsors, or has anything to do with it. Ballots are secret; any
+    guess about how anyone votes is speculation you brought with you. &ldquo;Home states&rdquo; are
+    based on public reporting and may be wrong. No prizes, no rewards, no merch — just arithmetic.
+    We store a counter and, if you offer one, a first name. Nothing else.</p>
+    <p>
+      <a href="/terms.html">Full terms &amp; disclaimers</a> ·
+      <a href="https://vote.gov" target="_blank" rel="noopener">Register to vote — vote.gov</a> ·
+      <a href="https://www.eac.gov/voters" target="_blank" rel="noopener">Election information — EAC</a>
+    </p>
+  </footer>
+
+  <div class="bfoot">End of ballot — now go get a real one · vote.gov</div>
+
+</main>
+
+<canvas id="certCanvas" width="1200" height="630" hidden></canvas>
+<script src="/app.js"></script>
+</body>
+</html>
