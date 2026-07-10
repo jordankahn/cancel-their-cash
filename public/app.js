@@ -220,7 +220,7 @@ function renderGrid() {
   const list = filteredRoster();
 
   const parts = [];
-  parts.push(currentState === 'ALL' ? 'Cancelable residents on file' : `Cancelable residents of ${STATES[currentState]}`);
+  parts.push(currentState === 'ALL' ? 'Cancelable residents, all states' : `Cancelable residents of ${STATES[currentState]}`);
   if (currentTag !== 'ALL') parts.push(currentTag);
   if (searchQuery) parts.push(`“${searchQuery}”`);
   $('#ballot').textContent = `Part 1 — ${parts.join(' · ')} (${list.length} on file)`;
