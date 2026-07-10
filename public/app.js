@@ -50,6 +50,7 @@ async function boot() {
   renderStats(stats);
   renderGrid();
   renderBoard();
+  renderSnapshot();
   renderTicker(feed.feed);
   setInterval(refreshLive, 25000);
 }
@@ -60,6 +61,7 @@ async function refreshLive() {
     renderStats(stats, true);
     renderTicker(feed.feed);
     renderBoard();
+    renderSnapshot();
   } catch (_) { /* offline blip; try again next tick */ }
 }
 
@@ -153,6 +155,30 @@ function renderTicker(feed) {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function renderSnapshot() {
+  try {
+    const [{ leaderboard }, { trending }] = await Promise.all([
+      api('/api/leaderboard?limit=5'), api('/api/trending?limit=1'),
+    ]);
+    $('#snapList').innerHTML = leaderboard.map((r, i) => `
+      <li>
+        <span class="rank">${String(i + 1).padStart(2, '0')}</span>
+        <span class="nm">${escapeHtml(r.name)}</span>
+        <span class="st">${r.state}</span>
+        <span class="dots"></span>
+        <span class="ct">${fmt(r.count)}</span>
+      </li>
+    `).join('');
+    const trend = $('#snapTrend');
+    if (trending.length) {
+      trend.hidden = false;
+      trend.textContent = `Trending today: ${trending[0].name} +${fmt(trending[0].dayCount)}`;
+    } else {
+      trend.hidden = true;
+    }
+  } catch (_) { /* snapshot is decorative; boards remain the source of truth */ }
 }
 
 // ---------------------------------------------------------------------------

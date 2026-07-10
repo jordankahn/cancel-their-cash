@@ -640,6 +640,58 @@ button { cursor: pointer; font-family: inherit; color: inherit; }
   padding: 10px 20px;
 }
 
+/* ---------- returns snapshot ---------- */
+
+.snapshot { border-bottom: 1.5px solid var(--rule); padding: 14px 26px 12px; }
+.snap-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.snap-head h2 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.snap-head a {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+  text-decoration-color: var(--red);
+  white-space: nowrap;
+}
+.snap-list { list-style: none; margin-top: 8px; columns: 1; }
+.snap-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.85rem;
+  padding: 3px 0 2px;
+  border-bottom: 1px solid var(--ledger-soft);
+}
+.snap-list .rank { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-60); }
+.snap-list .nm { font-weight: 700; text-transform: uppercase; }
+.snap-list .st {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.snap-list .dots { flex: 1; border-bottom: 1.5px dotted var(--ledger); min-width: 16px; }
+.snap-list .ct { font-family: var(--font-mono); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.snap-trend {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--red);
+  padding-top: 7px;
+}
+@media (min-width: 720px) {
+  .snap-list { columns: 2; column-gap: 40px; }
+  .snap-list li { break-inside: avoid; }
+}
+
 /* ---------- legacy hooks for terms.html ---------- */
 
 .form-meta {
