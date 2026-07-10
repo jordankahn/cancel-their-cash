@@ -23,8 +23,10 @@ filtering beyond the state select and no pagination.
 - Positioning: normal document flow until the ballot header scrolls off, then
   `position: sticky; top: 0` pins it to the viewport. It spans the paper width
   (stays inside the document, not the desk).
-- The section currently in view gets a red underline (IntersectionObserver on
-  the four anchor targets).
+- The section currently in view gets a red underline (rAF-throttled
+  scroll/resize listener picking the last anchor target above the 80px line —
+  deliberate substitution for IntersectionObserver, whose threshold model fits
+  this poorly).
 - Anchor clicks smooth-scroll (existing `scroll-behavior: smooth`, respects
   reduced motion). No routing, no hash-state persistence.
 - Mobile: horizontal scroll if cramped (`overflow-x: auto`, no wrap); the

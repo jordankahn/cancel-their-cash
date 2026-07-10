@@ -22,8 +22,13 @@ const fmt = (n) => Number(n).toLocaleString('en-US');
 
 let ROSTER = [];
 let currentState = localStorage.getItem('ctv-state') || 'ALL';
+let currentTag = 'ALL';
+let searchQuery = '';
+let currentSheet = 1;
+const SHEET_SIZE = 12;
 const myStamps = new Map(); // celeb id -> times stamped this session
 let boardMode = 'leader';
+let lastStatsTotal = 0;
 
 // ---------------------------------------------------------------------------
 // Data loading
@@ -37,6 +42,7 @@ async function api(path) {
 
 async function boot() {
   buildStatePicker();
+  initIndexSpy();
   $('#filedBy').value = localStorage.getItem('ctv-name') || '';
   $('#filedBy').addEventListener('change', () => {
     localStorage.setItem('ctv-name', $('#filedBy').value.trim());
@@ -46,9 +52,11 @@ async function boot() {
     api('/api/roster'), api('/api/stats'), api('/api/feed?limit=25'),
   ]);
   ROSTER = roster.celebs;
+  buildFilters();
   renderStats(stats);
   renderGrid();
   renderBoard();
+  renderSnapshot();
   renderTicker(feed.feed);
   setInterval(refreshLive, 25000);
 }
@@ -59,6 +67,7 @@ async function refreshLive() {
     renderStats(stats, true);
     renderTicker(feed.feed);
     renderBoard();
+    renderSnapshot();
   } catch (_) { /* offline blip; try again next tick */ }
 }
 
@@ -68,7 +77,7 @@ async function refreshLive() {
 
 function buildStatePicker() {
   const sel = $('#statePick');
-  sel.innerHTML = '<option value="ALL">All states — browse the full docket</option>' +
+  sel.innerHTML = '<option value="ALL">All states</option>' +
     Object.entries(STATES)
       .map(([code, name]) => `<option value="${code}">${name}</option>`)
       .join('');
@@ -76,8 +85,25 @@ function buildStatePicker() {
   sel.addEventListener('change', () => {
     currentState = sel.value;
     localStorage.setItem('ctv-state', currentState);
+    currentSheet = 1;
     renderGrid();
-    $('#rosterBar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function buildFilters() {
+  const tags = [...new Set(ROSTER.map((c) => c.tag))].sort();
+  const tagSel = $('#tagPick');
+  tagSel.innerHTML = '<option value="ALL">All categories</option>' +
+    tags.map((t) => `<option value="${t}">${t.charAt(0) + t.slice(1).toLowerCase()}</option>`).join('');
+  tagSel.addEventListener('change', () => {
+    currentTag = tagSel.value;
+    currentSheet = 1;
+    renderGrid();
+  });
+  $('#docketSearch').addEventListener('input', (e) => {
+    searchQuery = e.target.value.trim().toLowerCase();
+    currentSheet = 1;
+    renderGrid();
   });
 }
 
@@ -86,7 +112,9 @@ function buildStatePicker() {
 // ---------------------------------------------------------------------------
 
 function renderStats(stats, quiet) {
+  lastStatsTotal = stats.total;
   countTo($('#statTotal'), stats.total, quiet);
+  countTo($('#indexTotal'), stats.total, quiet);
   $('#statStates').textContent = stats.states;
   if (stats.top) $('#statTop').textContent = stats.top.name;
 }
@@ -117,6 +145,31 @@ function ago(ms) {
   return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
 }
 
+function initIndexSpy() {
+  const links = [...document.querySelectorAll('.index-links a')];
+  const targets = links.map((a) => document.querySelector(a.getAttribute('href')));
+  let ticking = false;
+  const update = () => {
+    ticking = false;
+    let current = -1;
+    targets.forEach((t, i) => {
+      if (t && t.getBoundingClientRect().top <= 80) current = i;
+    });
+    links.forEach((a, i) => {
+      a.classList.toggle('is-current', i === current);
+      if (i === current) a.setAttribute('aria-current', 'true');
+      else a.removeAttribute('aria-current');
+    });
+  };
+  document.addEventListener('scroll', () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(update); }
+  }, { passive: true });
+  window.addEventListener('resize', () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(update); }
+  });
+  update();
+}
+
 function renderTicker(feed) {
   const items = feed.map((f) =>
     `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A registered grudge-holder')} canceled ${escapeHtml(f.celeb)}'s vote in ${f.state}${f.times > 1 ? ` ×${f.times}` : ''} · ${ago(f.agoMs)}</span>`
@@ -128,30 +181,66 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+async function renderSnapshot() {
+  try {
+    const [{ leaderboard }, { trending }] = await Promise.all([
+      api('/api/leaderboard?limit=5'), api('/api/trending?limit=1'),
+    ]);
+    $('#snapList').innerHTML = leaderboard.map((r, i) => `
+      <li>
+        <span class="rank">${String(i + 1).padStart(2, '0')}</span>
+        <span class="nm">${escapeHtml(r.name)}</span>
+        <span class="st">${r.state}</span>
+        <span class="dots"></span>
+        <span class="ct">${fmt(r.count)}</span>
+      </li>
+    `).join('');
+    const trend = $('#snapTrend');
+    if (trending.length) {
+      trend.hidden = false;
+      trend.textContent = `Trending today: ${trending[0].name} +${fmt(trending[0].dayCount)}`;
+    } else {
+      trend.hidden = true;
+    }
+  } catch (_) { /* snapshot is decorative; boards remain the source of truth */ }
+}
+
 // ---------------------------------------------------------------------------
 // Ballot grid
 // ---------------------------------------------------------------------------
 
+function filteredRoster() {
+  return ROSTER.filter((c) =>
+    (currentState === 'ALL' || c.state === currentState) &&
+    (currentTag === 'ALL' || c.tag === currentTag) &&
+    (!searchQuery || c.name.toLowerCase().includes(searchQuery))
+  ).sort((a, b) => b.count - a.count);
+}
+
 function renderGrid() {
   const grid = $('#celebGrid');
-  const list = (currentState === 'ALL'
-    ? [...ROSTER]
-    : ROSTER.filter((c) => c.state === currentState)
-  ).sort((a, b) => b.count - a.count);
+  const list = filteredRoster();
 
-  $('#rosterBar').textContent = currentState === 'ALL'
-    ? `Part 1 — Cancelable residents on file (${list.length})`
-    : `Part 1 — Cancelable residents of ${STATES[currentState]} (${list.length} on file)`;
-  $('#rosterSub').textContent = currentState === 'ALL'
-    ? "Reported home states. We don't know how anyone votes. Neither do you. That's the point."
-    : `These ballots share your races: Senate, House, governor. Fill in an oval to file your grievance.`;
+  const parts = [];
+  parts.push(currentState === 'ALL' ? 'Cancelable residents, all states' : `Cancelable residents of ${STATES[currentState]}`);
+  if (currentTag !== 'ALL') parts.push(currentTag);
+  if (searchQuery) parts.push(`“${searchQuery}”`);
+  $('#ballot').textContent = `Part 1 — ${parts.join(' · ')} (${list.length} on file)`;
 
   if (!list.length) {
-    grid.innerHTML = '<p class="empty-note">No famous ballots on file for this state yet. Cancel someone in spirit — then vote anyway.</p>';
+    grid.innerHTML = '<p class="empty-note">No famous ballots match this combination of grievances. Loosen a filter — then vote anyway.</p>';
+    const pagerEl = $('#pager');
+    if (pagerEl) pagerEl.innerHTML = '';
+    const annEl = $('#pagerAnnounce');
+    if (annEl) annEl.textContent = '';
     return;
   }
 
-  grid.innerHTML = list.map((c) => `
+  const totalSheets = Math.ceil(list.length / SHEET_SIZE);
+  if (currentSheet > totalSheets) currentSheet = totalSheets;
+  const page = list.slice((currentSheet - 1) * SHEET_SIZE, currentSheet * SHEET_SIZE);
+
+  grid.innerHTML = page.map((c) => `
     <article class="brow" data-id="${c.id}">
       <div class="brow-main">
         <button class="oval${myStamps.has(c.id) ? ' is-filled' : ''}" data-id="${c.id}"
@@ -164,7 +253,7 @@ function renderGrid() {
       </div>
       <p class="brow-count">Cancellations on file <span class="dots"></span> <strong data-count>${fmt(c.count)}</strong></p>
       <div class="brow-actions" ${myStamps.has(c.id) ? '' : 'hidden'}>
-        <p class="brow-status" data-status>Status: pending until you actually vote.</p>
+        <p class="brow-status" data-status>${stampStatusText(myStamps.get(c.id) || 0)}</p>
         <div class="brow-links">
           <a class="act-register" href="https://vote.gov/register/${c.state.toLowerCase()}" target="_blank" rel="noopener">Register to vote →</a>
           <button type="button" data-cert>Certificate</button>
@@ -172,9 +261,53 @@ function renderGrid() {
           <button type="button" data-again>Stamp again</button>
         </div>
       </div>
+      ${myStamps.has(c.id) ? '<span class="stamp-impression is-static" style="--rot:-6deg;right:10px;top:12px">CANCELED</span>' : ''}
     </article>
   `).join('');
+
+  renderPager(totalSheets);
 }
+
+function stampStatusText(times) {
+  return times <= 1
+    ? 'Status: pending until you actually vote.'
+    : `Stamped ×${times}. It only had 1 vote — ${times - 1} filed under SPITE, SURPLUS. Still pending until you vote.`;
+}
+
+function renderPager(totalSheets) {
+  const pager = $('#pager');
+  const announce = $('#pagerAnnounce');
+  if (totalSheets <= 1) {
+    pager.innerHTML = '';
+    if (announce) announce.textContent = '';
+    return;
+  }
+  if (announce) announce.textContent = `Sheet ${currentSheet} of ${totalSheets}`;
+  const numbers = totalSheets <= 8
+    ? Array.from({ length: totalSheets }, (_, i) =>
+        `<button class="sheet-no${i + 1 === currentSheet ? ' is-current' : ''}" data-sheet="${i + 1}" aria-label="Sheet ${i + 1}"${i + 1 === currentSheet ? ' aria-current="page"' : ''}>${i + 1}</button>`
+      ).join('')
+    : `<span>Sheet ${currentSheet} of ${totalSheets}</span>`;
+  pager.innerHTML = `
+    <button data-sheet="${currentSheet - 1}" ${currentSheet === 1 ? 'disabled' : ''} aria-label="Previous sheet">◀</button>
+    ${numbers}
+    <button data-sheet="${currentSheet + 1}" ${currentSheet === totalSheets ? 'disabled' : ''} aria-label="Next sheet">▶</button>
+  `;
+}
+
+$('#pager').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-sheet]');
+  if (!btn || btn.disabled) return;
+  const label = btn.getAttribute('aria-label'); // "Previous sheet" | "Next sheet" | null
+  currentSheet = Number(btn.dataset.sheet);
+  renderGrid();
+  const pager = $('#pager');
+  const target = (label && pager.querySelector(`button[aria-label="${label}"]:not([disabled])`)) ||
+    pager.querySelector('.sheet-no.is-current') ||
+    pager.querySelector('button[data-sheet]:not([disabled])');
+  if (target) target.focus({ preventScroll: true });
+  $('#ballot').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 $('#celebGrid').addEventListener('click', (e) => {
   const oval = e.target.closest('.oval');
@@ -205,13 +338,14 @@ async function cancelVote(id) {
   const countEl = row.querySelector('[data-count]');
   celeb.count += 1;
   countEl.textContent = fmt(celeb.count);
+  lastStatsTotal += 1;
+  countTo($('#statTotal'), lastStatsTotal, true);
+  countTo($('#indexTotal'), lastStatsTotal, true);
 
   const actions = row.querySelector('.brow-actions');
   actions.hidden = false;
   const status = row.querySelector('[data-status]');
-  status.textContent = times === 1
-    ? 'Status: pending until you actually vote.'
-    : `Stamped ×${times}. It only had 1 vote — ${times - 1} filed under SPITE, SURPLUS. Still pending until you vote.`;
+  status.textContent = stampStatusText(times);
 
   try {
     const res = await fetch('/api/cancel', {
