@@ -692,6 +692,145 @@ button { cursor: pointer; font-family: inherit; color: inherit; }
   .snap-list li { break-inside: avoid; }
 }
 
+/* ---------- exchange-rate exhibit ---------- */
+
+.exhibit {
+  position: relative;
+  border-bottom: 1.5px solid var(--rule);
+  padding: 20px 26px 18px;
+  background:
+    repeating-linear-gradient(transparent, transparent 27px, var(--ledger-soft) 27px, var(--ledger-soft) 28px);
+}
+.exhibit h2 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 10px;
+}
+.exhibit-math {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  max-width: 560px;
+}
+.em-line { display: block; padding: 1px 0; }
+.em-note { color: var(--ink-60); font-size: 0.78em; letter-spacing: 0.04em; text-transform: uppercase; }
+.em-result { font-weight: 700; border-top: 1.5px solid var(--ink); margin-top: 3px; padding-top: 4px; display: inline-block; }
+.exhibit-rate { margin-top: 12px; font-size: 1.02rem; }
+.exhibit-rate strong {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  border: 2px solid var(--ink);
+  padding: 3px 10px 1px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.exhibit-foot {
+  display: inline-block;
+  margin-left: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.exhibit-cite { margin-top: 10px; font-size: 0.72rem; color: var(--ink-60); }
+.exhibit-stamp {
+  position: absolute;
+  top: 16px;
+  right: 22px;
+  transform: rotate(4deg);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--red);
+  border: 2px solid var(--red);
+  padding: 4px 9px 2px;
+  opacity: 0.7;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+@media (max-width: 560px) { .exhibit-stamp { position: static; display: inline-block; transform: rotate(-2deg); margin-bottom: 8px; } }
+
+/* ---------- ledger meters & overdrawn ---------- */
+
+.ledger-line { margin-top: 11px; }
+.ledger-meter {
+  height: 8px;
+  background: var(--ledger-soft);
+  border: 1px solid var(--ledger);
+  position: relative;
+  overflow: hidden;
+}
+.ledger-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink);
+  transition: width 0.35s ease;
+}
+.brow.is-overdrawn .ledger-fill { background: var(--red); }
+.brow-count { margin-top: 6px; }
+.brow-count .pct { color: var(--ink); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.brow.is-overdrawn .pct { color: var(--red); }
+.over-balance { color: var(--red); font-weight: 700; letter-spacing: 0.04em; }
+.brow.is-overdrawn { background: var(--red-soft); }
+
+/* ---------- industry rollup strip ---------- */
+
+.rollup {
+  display: flex;
+  align-items: baseline;
+  gap: 8px 22px;
+  flex-wrap: wrap;
+  padding: 9px 26px 8px;
+  border-bottom: 1px solid var(--ledger);
+  background: var(--paper-dim);
+}
+.rollup[hidden] { display: none; }
+.rollup-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.rollup-fig {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-60);
+  font-variant-numeric: tabular-nums;
+}
+.rollup-neut { color: var(--red); }
+
+/* ---------- spend-where picker ---------- */
+
+.spend-where {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.spend-where label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.spend-where select {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: transparent;
+  color: var(--ink);
+  border: none;
+  border-bottom: 1.5px dotted var(--ink);
+  border-radius: 0;
+  padding: 1px 2px;
+  max-width: 130px;
+  cursor: pointer;
+}
+
 /* ---------- legacy hooks for terms.html ---------- */
 
 .form-meta {

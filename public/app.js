@@ -1,6 +1,9 @@
-/* Cancel Their Vote — frontend. No frameworks, no tracking, no data
-   beyond an optional first name attached to a number. */
+/* Cancel Their Vote — frontend, money-pivot edition. No frameworks, no
+   tracking, no data beyond an optional first name attached to a number.
+   A pledge = one vote = $100 of influence at the Official Exchange Rate. */
 'use strict';
+
+const RATE = 100; // dollars per vote; the Bureau does not make change
 
 const STATES = {
   AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
@@ -19,14 +22,14 @@ const STATES = {
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n) => Number(n).toLocaleString('en-US');
+const usd = (n) => '$' + fmt(Math.round(n));
 
 let ROSTER = [];
-let currentState = localStorage.getItem('ctv-state') || 'ALL';
 let currentTag = 'ALL';
 let searchQuery = '';
 let currentSheet = 1;
 const SHEET_SIZE = 12;
-const myStamps = new Map(); // celeb id -> times stamped this session
+const myStamps = new Map(); // target id -> times stamped this session
 let boardMode = 'leader';
 let lastStatsTotal = 0;
 
@@ -41,7 +44,6 @@ async function api(path) {
 }
 
 async function boot() {
-  buildStatePicker();
   initIndexSpy();
   $('#filedBy').value = localStorage.getItem('ctv-name') || '';
   $('#filedBy').addEventListener('change', () => {
@@ -51,7 +53,7 @@ async function boot() {
   const [roster, stats, feed] = await Promise.all([
     api('/api/roster'), api('/api/stats'), api('/api/feed?limit=25'),
   ]);
-  ROSTER = roster.celebs;
+  ROSTER = roster.targets;
   buildFilters();
   renderStats(stats);
   renderGrid();
@@ -72,28 +74,13 @@ async function refreshLive() {
 }
 
 // ---------------------------------------------------------------------------
-// State picker
+// Filters
 // ---------------------------------------------------------------------------
 
-function buildStatePicker() {
-  const sel = $('#statePick');
-  sel.innerHTML = '<option value="ALL">All states</option>' +
-    Object.entries(STATES)
-      .map(([code, name]) => `<option value="${code}">${name}</option>`)
-      .join('');
-  sel.value = currentState;
-  sel.addEventListener('change', () => {
-    currentState = sel.value;
-    localStorage.setItem('ctv-state', currentState);
-    currentSheet = 1;
-    renderGrid();
-  });
-}
-
 function buildFilters() {
-  const tags = [...new Set(ROSTER.map((c) => c.tag))].sort();
+  const tags = [...new Set(ROSTER.map((t) => t.industry))].sort();
   const tagSel = $('#tagPick');
-  tagSel.innerHTML = '<option value="ALL">All categories</option>' +
+  tagSel.innerHTML = '<option value="ALL">All industries</option>' +
     tags.map((t) => `<option value="${t}">${t.charAt(0) + t.slice(1).toLowerCase()}</option>`).join('');
   tagSel.addEventListener('change', () => {
     currentTag = tagSel.value;
@@ -113,17 +100,17 @@ function buildFilters() {
 
 function renderStats(stats, quiet) {
   lastStatsTotal = stats.total;
-  countTo($('#statTotal'), stats.total, quiet);
-  countTo($('#indexTotal'), stats.total, quiet);
-  $('#statStates').textContent = stats.states;
+  countTo($('#statTotal'), stats.total * RATE, quiet, usd);
+  countTo($('#indexTotal'), stats.total * RATE, quiet, usd);
+  $('#statOutstanding').textContent = usd(stats.outstanding);
   if (stats.top) $('#statTop').textContent = stats.top.name;
 }
 
-function countTo(el, target, quiet) {
-  const start = Number((el.textContent || '0').replace(/,/g, '')) || 0;
+function countTo(el, target, quiet, format = fmt) {
+  const start = Number((el.textContent || '0').replace(/[^0-9]/g, '')) || 0;
   if (quiet && start === target) return;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    el.textContent = fmt(target);
+    el.textContent = format(target);
     return;
   }
   const t0 = performance.now();
@@ -131,7 +118,7 @@ function countTo(el, target, quiet) {
   const step = (t) => {
     const k = Math.min(1, (t - t0) / dur);
     const eased = 1 - Math.pow(1 - k, 3);
-    el.textContent = fmt(Math.round(start + (target - start) * eased));
+    el.textContent = format(Math.round(start + (target - start) * eased));
     if (k < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -172,7 +159,7 @@ function initIndexSpy() {
 
 function renderTicker(feed) {
   const items = feed.map((f) =>
-    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A registered grudge-holder')} canceled ${escapeHtml(f.celeb)}'s vote in ${f.state}${f.times > 1 ? ` ×${f.times}` : ''} · ${ago(f.agoMs)}</span>`
+    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A registered grudge-holder')} neutralized ${usd(f.times * RATE)} of ${escapeHtml(f.target)}'s influence · ${ago(f.agoMs)}</span>`
   ).join('');
   $('#tickerTrack').innerHTML = items + items; // duplicated for a seamless loop
 }
@@ -190,15 +177,14 @@ async function renderSnapshot() {
       <li>
         <span class="rank">${String(i + 1).padStart(2, '0')}</span>
         <span class="nm">${escapeHtml(r.name)}</span>
-        <span class="st">${r.state}</span>
         <span class="dots"></span>
-        <span class="ct">${fmt(r.count)}</span>
+        <span class="ct">${usd(r.count * RATE)}</span>
       </li>
     `).join('');
     const trend = $('#snapTrend');
     if (trending.length) {
       trend.hidden = false;
-      trend.textContent = `Trending today: ${trending[0].name} +${fmt(trending[0].dayCount)}`;
+      trend.textContent = `Trending today: ${trending[0].name} −${usd(trending[0].dayCount * RATE).slice(1)} and falling`;
     } else {
       trend.hidden = true;
     }
@@ -206,33 +192,51 @@ async function renderSnapshot() {
 }
 
 // ---------------------------------------------------------------------------
-// Ballot grid
+// The ledger (Part 1)
 // ---------------------------------------------------------------------------
 
 function filteredRoster() {
-  return ROSTER.filter((c) =>
-    (currentState === 'ALL' || c.state === currentState) &&
-    (currentTag === 'ALL' || c.tag === currentTag) &&
-    (!searchQuery || c.name.toLowerCase().includes(searchQuery))
-  ).sort((a, b) => b.count - a.count);
+  return ROSTER.filter((t) =>
+    (currentTag === 'ALL' || t.industry === currentTag) &&
+    (!searchQuery || t.name.toLowerCase().includes(searchQuery))
+  ).sort((a, b) => b.totalUsd - a.totalUsd);
+}
+
+function neutralizedUsd(t) { return t.count * RATE; }
+function balanceUsd(t) { return t.totalUsd - neutralizedUsd(t); }
+function pct(t) { return Math.min(999, (neutralizedUsd(t) / t.totalUsd) * 100); }
+
+function tagLabel(t) { return t.charAt(0) + t.slice(1).toLowerCase(); }
+
+function renderRollup(list) {
+  const rollup = $('#rollup');
+  if (currentTag === 'ALL' || !list.length) { rollup.hidden = true; return; }
+  const total = list.reduce((s, t) => s + t.totalUsd, 0);
+  const neut = list.reduce((s, t) => s + neutralizedUsd(t), 0);
+  rollup.hidden = false;
+  rollup.innerHTML = `
+    <span class="rollup-name">${escapeHtml(tagLabel(currentTag))} — industry ledger</span>
+    <span class="rollup-fig">OUTSTANDING ${usd(total)}</span>
+    <span class="rollup-fig rollup-neut">NEUTRALIZED ${usd(neut)} (${((neut / total) * 100).toFixed(1)}%)</span>
+  `;
 }
 
 function renderGrid() {
   const grid = $('#celebGrid');
   const list = filteredRoster();
 
-  const parts = [];
-  parts.push(currentState === 'ALL' ? 'Cancelable residents, all states' : `Cancelable residents of ${STATES[currentState]}`);
-  if (currentTag !== 'ALL') parts.push(currentTag);
+  const parts = ['Schedule of outstanding influence'];
+  if (currentTag !== 'ALL') parts.push(tagLabel(currentTag));
   if (searchQuery) parts.push(`“${searchQuery}”`);
-  $('#ballot').textContent = `Part 1 — ${parts.join(' · ')} (${list.length} on file)`;
+  const barText = `Part 1 — ${parts.join(' · ')} (${list.length} line item${list.length === 1 ? '' : 's'})`;
+  if ($('#ballot').textContent !== barText) $('#ballot').textContent = barText;
+
+  renderRollup(list);
 
   if (!list.length) {
-    grid.innerHTML = '<p class="empty-note">No famous ballots match this combination of grievances. Loosen a filter — then vote anyway.</p>';
-    const pagerEl = $('#pager');
-    if (pagerEl) pagerEl.innerHTML = '';
-    const annEl = $('#pagerAnnounce');
-    if (annEl) annEl.textContent = '';
+    grid.innerHTML = '<p class="empty-note">No line items match. The money is still out there — loosen a filter and vote anyway.</p>';
+    $('#pager').innerHTML = '';
+    $('#pagerAnnounce').textContent = '';
     return;
   }
 
@@ -240,38 +244,60 @@ function renderGrid() {
   if (currentSheet > totalSheets) currentSheet = totalSheets;
   const page = list.slice((currentSheet - 1) * SHEET_SIZE, currentSheet * SHEET_SIZE);
 
-  grid.innerHTML = page.map((c) => `
-    <article class="brow" data-id="${c.id}">
+  grid.innerHTML = page.map((t) => {
+    const over = balanceUsd(t) < 0;
+    const stamped = myStamps.has(t.id);
+    return `
+    <article class="brow${over ? ' is-overdrawn' : ''}" data-id="${t.id}">
       <div class="brow-main">
-        <button class="oval${myStamps.has(c.id) ? ' is-filled' : ''}" data-id="${c.id}"
-          aria-label="Cancel ${escapeHtml(c.name)}'s vote"></button>
+        <button class="oval${stamped ? ' is-filled' : ''}" data-id="${t.id}"
+          aria-label="Pledge one vote against ${escapeHtml(t.name)}"></button>
         <div class="brow-txt">
-          <h3 class="brow-name">${escapeHtml(c.name)}</h3>
-          <p class="brow-meta">${STATES[c.state] || c.state} · ${c.tag}</p>
-          <p class="brow-blurb">${escapeHtml(c.blurb)}</p>
+          <h3 class="brow-name">${escapeHtml(t.name)}</h3>
+          <p class="brow-meta">${escapeHtml(tagLabel(t.industry))} · ${usd(t.totalUsd)} on ledger</p>
+          <p class="brow-blurb">${escapeHtml(t.blurb)}</p>
         </div>
       </div>
-      <p class="brow-count">Cancellations on file <span class="dots"></span> <strong data-count>${fmt(c.count)}</strong></p>
-      <div class="brow-actions" ${myStamps.has(c.id) ? '' : 'hidden'}>
-        <p class="brow-status" data-status>${stampStatusText(myStamps.get(c.id) || 0)}</p>
+      <div class="ledger-line">
+        <div class="ledger-meter" role="img" aria-label="${pct(t).toFixed(1)} percent neutralized">
+          <span class="ledger-fill" style="width:${Math.min(100, pct(t)).toFixed(2)}%"></span>
+        </div>
+        <p class="brow-count">
+          ${over
+            ? `<span class="over-balance">BALANCE ${usd(balanceUsd(t)).replace('$-', '−$')} · OVERDRAWN</span>`
+            : `Neutralized <strong data-count>${usd(neutralizedUsd(t))}</strong> of ${usd(t.totalUsd)}`}
+          <span class="dots"></span>
+          <strong class="pct">${pct(t).toFixed(1)}%</strong>
+        </p>
+      </div>
+      <div class="brow-actions" ${stamped ? '' : 'hidden'}>
+        <p class="brow-status" data-status>${stampStatusText(myStamps.get(t.id) || 0)}</p>
         <div class="brow-links">
-          <a class="act-register" href="https://vote.gov/register/${c.state.toLowerCase()}" target="_blank" rel="noopener">Register to vote →</a>
-          <button type="button" data-cert>Certificate</button>
+          <span class="spend-where">
+            <label for="spend-${t.id}">Where will you spend it?</label>
+            <select id="spend-${t.id}" data-spend aria-label="Pick your state for registration info">
+              <option value="">state…</option>
+              ${Object.entries(STATES).map(([c, n]) => `<option value="${c.toLowerCase()}">${n}</option>`).join('')}
+            </select>
+          </span>
+          <a class="act-register" data-register href="https://vote.gov" target="_blank" rel="noopener">Register to vote →</a>
+          <button type="button" data-cert>Certificate of deposit</button>
           <button type="button" data-share>Share</button>
-          <button type="button" data-again>Stamp again</button>
+          <button type="button" data-again>Deposit another $100</button>
         </div>
       </div>
-      ${myStamps.has(c.id) ? '<span class="stamp-impression is-static" style="--rot:-6deg;right:10px;top:12px">CANCELED</span>' : ''}
+      ${over ? '<span class="stamp-impression is-static" style="--rot:-5deg;right:10px;top:12px">OVERDRAWN</span>'
+        : (stamped ? '<span class="stamp-impression is-static" style="--rot:-6deg;right:10px;top:12px">CANCELED</span>' : '')}
     </article>
-  `).join('');
+  `; }).join('');
 
   renderPager(totalSheets);
 }
 
 function stampStatusText(times) {
   return times <= 1
-    ? 'Status: pending until you actually vote.'
-    : `Stamped ×${times}. It only had 1 vote — ${times - 1} filed under SPITE, SURPLUS. Still pending until you vote.`;
+    ? 'Status: pending. Your $100 clears only when you cast an actual ballot.'
+    : `You've deposited ${usd(times * RATE)} of intent. Each $100 needs a voter behind it — bring ${times - 1} friend${times - 1 === 1 ? '' : 's'}. Still pending until you vote.`;
 }
 
 function renderPager(totalSheets) {
@@ -298,7 +324,7 @@ function renderPager(totalSheets) {
 $('#pager').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sheet]');
   if (!btn || btn.disabled) return;
-  const label = btn.getAttribute('aria-label'); // "Previous sheet" | "Next sheet" | null
+  const label = btn.getAttribute('aria-label'); // arrow labels or "Sheet N"
   currentSheet = Number(btn.dataset.sheet);
   renderGrid();
   const pager = $('#pager');
@@ -308,6 +334,57 @@ $('#pager').addEventListener('click', (e) => {
   if (target) target.focus({ preventScroll: true });
   $('#ballot').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
+
+// ---------------------------------------------------------------------------
+// Returns tables
+// ---------------------------------------------------------------------------
+
+async function renderBoard() {
+  const list = $('#boardList');
+  try {
+    if (boardMode === 'leader') {
+      const { leaderboard } = await api('/api/leaderboard?limit=10');
+      drawBoard(list, leaderboard, (r) => usd(r.count * RATE));
+    } else {
+      const { trending } = await api('/api/trending?limit=10');
+      if (!trending.length) {
+        list.innerHTML = '<li><span class="rank">—</span><span class="who"><span class="nm">A quiet day at the currency desk</span><span class="st">No deposits in 24h</span></span><span class="track"></span><span class="ct"></span></li>';
+        return;
+      }
+      drawBoard(list, trending, (r) => `+${usd(r.dayCount * RATE)}`);
+    }
+  } catch (_) { /* leave old board */ }
+}
+
+function drawBoard(list, rows, ctFn) {
+  const max = Math.max(...rows.map((r) => r.dayCount ?? r.count), 1);
+  list.innerHTML = rows.map((r, i) => `
+    <li>
+      <span class="rank">${String(i + 1).padStart(2, '0')}</span>
+      <span class="who">
+        <span class="nm">${escapeHtml(r.name)}</span>
+        <span class="st">${escapeHtml(tagLabel(r.industry))} · ${usd(r.totalUsd)} on ledger</span>
+      </span>
+      <span class="track"><span class="bar" style="width:${(((r.dayCount ?? r.count) / max) * 100).toFixed(1)}%"></span></span>
+      <span class="ct">${ctFn(r)}</span>
+    </li>
+  `).join('');
+}
+
+$('#tabLeader').addEventListener('click', () => setBoard('leader'));
+$('#tabTrend').addEventListener('click', () => setBoard('trend'));
+function setBoard(mode) {
+  boardMode = mode;
+  $('#tabLeader').classList.toggle('is-active', mode === 'leader');
+  $('#tabTrend').classList.toggle('is-active', mode === 'trend');
+  $('#tabLeader').setAttribute('aria-selected', mode === 'leader');
+  $('#tabTrend').setAttribute('aria-selected', mode === 'trend');
+  renderBoard();
+}
+
+// ---------------------------------------------------------------------------
+// Pledging (the stamp)
+// ---------------------------------------------------------------------------
 
 $('#celebGrid').addEventListener('click', (e) => {
   const oval = e.target.closest('.oval');
@@ -319,10 +396,19 @@ $('#celebGrid').addEventListener('click', (e) => {
   if (e.target.closest('[data-share]')) return shareCancel(row.dataset.id, e.target.closest('[data-share]'));
 });
 
+$('#celebGrid').addEventListener('change', (e) => {
+  const sel = e.target.closest('[data-spend]');
+  if (!sel) return;
+  const row = e.target.closest('.brow');
+  const link = row.querySelector('[data-register]');
+  link.href = sel.value ? `https://vote.gov/register/${sel.value}` : 'https://vote.gov';
+  if (sel.value) localStorage.setItem('ctv-spend-state', sel.value);
+});
+
 async function cancelVote(id) {
-  const celeb = ROSTER.find((c) => c.id === id);
+  const target = ROSTER.find((t) => t.id === id);
   const row = document.querySelector(`.brow[data-id="${id}"]`);
-  if (!celeb || !row) return;
+  if (!target || !row) return;
 
   const times = (myStamps.get(id) || 0) + 1;
   myStamps.set(id, times);
@@ -334,18 +420,25 @@ async function cancelVote(id) {
   const name = $('#filedBy').value.trim();
   if (name) localStorage.setItem('ctv-name', name);
 
-  // optimistic count bump; corrected by server response
-  const countEl = row.querySelector('[data-count]');
-  celeb.count += 1;
-  countEl.textContent = fmt(celeb.count);
+  // optimistic bump; corrected by server response
+  target.count += 1;
   lastStatsTotal += 1;
-  countTo($('#statTotal'), lastStatsTotal, true);
-  countTo($('#indexTotal'), lastStatsTotal, true);
+  countTo($('#statTotal'), lastStatsTotal * RATE, true, usd);
+  countTo($('#indexTotal'), lastStatsTotal * RATE, true, usd);
 
   const actions = row.querySelector('.brow-actions');
   actions.hidden = false;
+  const saved = localStorage.getItem('ctv-spend-state');
+  if (saved) {
+    const sel = row.querySelector('[data-spend]');
+    if (sel && !sel.value) {
+      sel.value = saved;
+      row.querySelector('[data-register]').href = `https://vote.gov/register/${saved}`;
+    }
+  }
   const status = row.querySelector('[data-status]');
   status.textContent = stampStatusText(times);
+  updateLedgerLine(row, target);
 
   try {
     const res = await fetch('/api/cancel', {
@@ -355,10 +448,30 @@ async function cancelVote(id) {
     });
     const out = await res.json();
     if (res.ok) {
-      celeb.count = out.count;
-      countEl.textContent = fmt(celeb.count);
+      target.count = out.count;
+      updateLedgerLine(row, target);
     }
   } catch (_) { /* the stamp is the experience; counts sync next refresh */ }
+}
+
+function updateLedgerLine(row, target) {
+  const over = balanceUsd(target) < 0;
+  const line = row.querySelector('.brow-count');
+  const fill = row.querySelector('.ledger-fill');
+  fill.style.width = Math.min(100, pct(target)).toFixed(2) + '%';
+  line.innerHTML = over
+    ? `<span class="over-balance">BALANCE ${usd(balanceUsd(target)).replace('$-', '−$')} · OVERDRAWN</span><span class="dots"></span><strong class="pct">${pct(target).toFixed(1)}%</strong>`
+    : `Neutralized <strong data-count>${usd(neutralizedUsd(target))}</strong> of ${usd(target.totalUsd)}<span class="dots"></span><strong class="pct">${pct(target).toFixed(1)}%</strong>`;
+  if (over && !row.classList.contains('is-overdrawn')) {
+    row.classList.add('is-overdrawn');
+    const imp = document.createElement('span');
+    imp.className = 'stamp-impression';
+    imp.textContent = 'OVERDRAWN';
+    imp.style.setProperty('--rot', '-5deg');
+    imp.style.right = '10px';
+    imp.style.top = '12px';
+    row.appendChild(imp);
+  }
 }
 
 function slamStamp(row, times) {
@@ -380,58 +493,11 @@ function slamStamp(row, times) {
 }
 
 // ---------------------------------------------------------------------------
-// Returns tables
-// ---------------------------------------------------------------------------
-
-async function renderBoard() {
-  const list = $('#boardList');
-  try {
-    if (boardMode === 'leader') {
-      const { leaderboard } = await api('/api/leaderboard?limit=10');
-      drawBoard(list, leaderboard, (r) => fmt(r.count));
-    } else {
-      const { trending } = await api('/api/trending?limit=10');
-      if (!trending.length) {
-        list.innerHTML = '<li><span class="rank">—</span><span class="who"><span class="nm">A quiet day at the bureau</span><span class="st">No cancellations in 24h</span></span><span class="track"></span><span class="ct"></span></li>';
-        return;
-      }
-      drawBoard(list, trending, (r) => `+${fmt(r.dayCount)}`);
-    }
-  } catch (_) { /* leave old board */ }
-}
-
-function drawBoard(list, rows, ctFn) {
-  const max = Math.max(...rows.map((r) => r.dayCount ?? r.count), 1);
-  list.innerHTML = rows.map((r, i) => `
-    <li>
-      <span class="rank">${String(i + 1).padStart(2, '0')}</span>
-      <span class="who">
-        <span class="nm">${escapeHtml(r.name)}</span>
-        <span class="st">${STATES[r.state] || r.state} · ${r.tag}</span>
-      </span>
-      <span class="track"><span class="bar" style="width:${(((r.dayCount ?? r.count) / max) * 100).toFixed(1)}%"></span></span>
-      <span class="ct">${ctFn(r)}</span>
-    </li>
-  `).join('');
-}
-
-$('#tabLeader').addEventListener('click', () => setBoard('leader'));
-$('#tabTrend').addEventListener('click', () => setBoard('trend'));
-function setBoard(mode) {
-  boardMode = mode;
-  $('#tabLeader').classList.toggle('is-active', mode === 'leader');
-  $('#tabTrend').classList.toggle('is-active', mode === 'trend');
-  $('#tabLeader').setAttribute('aria-selected', mode === 'leader');
-  $('#tabTrend').setAttribute('aria-selected', mode === 'trend');
-  renderBoard();
-}
-
-// ---------------------------------------------------------------------------
-// Certificate (1200×630 canvas → PNG)
+// Certificate of Deposit (1200×630 canvas → PNG)
 // ---------------------------------------------------------------------------
 
 async function drawCertificate(id) {
-  const c = ROSTER.find((r) => r.id === id);
+  const t = ROSTER.find((r) => r.id === id);
   const name = $('#filedBy').value.trim() || 'A Registered Grudge-Holder';
   await document.fonts.load('700 44px "Archivo Narrow"');
   await document.fonts.load('700 20px "Courier Prime"');
@@ -453,62 +519,61 @@ async function drawCertificate(id) {
   x.fillStyle = '#f7f4ea';
   x.textAlign = 'left';
   x.font = '700 34px "Archivo Narrow", sans-serif';
-  x.fillText('OFFICIAL CANCELLATION BALLOT — RECEIPT', 52, 78);
+  x.fillText('CERTIFICATE OF DEPOSIT — ONE (1) VOTE', 52, 78);
   x.font = '15px "Courier Prime", monospace';
   x.textAlign = 'right';
-  x.fillText('FORM CTV-26-C · UNOFFICIAL', W - 52, 60);
-  x.fillText('BUREAU OF BALLOT GRIEVANCES', W - 52, 82);
+  x.fillText('FORM CTV-26-M · UNOFFICIAL', W - 52, 60);
+  x.fillText('BUREAU OF BALLOT GRIEVANCES · CURRENCY DESK', W - 52, 82);
 
-  // frame
+  // frame + inner rule like a banknote
   x.strokeStyle = '#17161a';
   x.lineWidth = 1.5;
   x.strokeRect(28, 28, W - 56, H - 56);
+  x.strokeRect(40, 118, W - 80, H - 158);
 
+  // face value corners
+  x.fillStyle = '#17161a';
+  x.font = '700 40px "Archivo Narrow", sans-serif';
   x.textAlign = 'left';
+  x.fillText('$100', 58, 168);
+  x.textAlign = 'right';
+  x.fillText('$100', W - 58, 168);
+  x.fillText('$100', W - 58, H - 68);
+  x.textAlign = 'left';
+  x.fillText('$100', 58, H - 68);
+
+  x.textAlign = 'center';
   x.fillStyle = '#55534f';
   x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText('THIS RECEIPT CERTIFIES THAT', 72, 168);
+  x.fillText('THIS CERTIFIES THAT', W / 2, 175);
 
   x.fillStyle = '#17161a';
-  x.font = '700 52px "Archivo Narrow", sans-serif';
-  x.fillText(name.toUpperCase(), 72, 224);
-  x.strokeStyle = '#a9bccd';
-  x.lineWidth = 1.5;
-  x.beginPath(); x.moveTo(72, 238); x.lineTo(W - 320, 238); x.stroke();
-
-  x.fillStyle = '#55534f';
-  x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText('HAS PLEDGED TO PERSONALLY CANCEL OUT THE ONE (1) VOTE OF', 72, 286);
-
-  x.fillStyle = '#17161a';
-  x.font = '700 60px "Archivo Narrow", sans-serif';
-  x.fillText(c.name.toUpperCase(), 72, 352);
-  x.beginPath(); x.moveTo(72, 368); x.lineTo(W - 320, 368); x.stroke();
+  x.font = '700 50px "Archivo Narrow", sans-serif';
+  x.fillText(name.toUpperCase(), W / 2, 230);
 
   x.fillStyle = '#55534f';
   x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText(`IN THE STATE OF ${STATES[c.state].toUpperCase()}, BY THE RADICAL ACT OF ALSO VOTING.`, 72, 414);
+  x.fillText('HOLDS ONE (1) VOTE · FACE VALUE $100 AT THE OFFICIAL EXCHANGE RATE', W / 2, 278);
+  x.fillText('PLEDGED AGAINST THE INFLUENCE ACCOUNT OF', W / 2, 320);
 
-  // filled oval exhibit
-  x.strokeStyle = '#17161a';
-  x.lineWidth = 3;
-  x.beginPath(); x.ellipse(96, 470, 26, 13, 0, 0, Math.PI * 2); x.stroke();
-  x.fillStyle = '#17161a';
-  x.beginPath(); x.ellipse(96, 470, 20, 8, -0.04, 0, Math.PI * 2); x.fill();
+  x.fillStyle = '#b5271d';
+  x.font = '700 54px "Archivo Narrow", sans-serif';
+  x.fillText(t.name.toUpperCase(), W / 2, 382);
+
   x.fillStyle = '#55534f';
-  x.font = '16px "Courier Prime", monospace';
-  x.fillText('EXHIBIT A: THE OVAL, FILLED. PRACTICE COMPLETE.', 140, 476);
+  x.font = '20px "Archivo Narrow", sans-serif';
+  x.fillText(`${usd(t.totalUsd)} ON LEDGER, PER FEC FILINGS · EVERY $100 OF IT NEEDS A VOTER`, W / 2, 428);
 
   x.font = '700 17px "Courier Prime", monospace';
   x.fillStyle = '#17161a';
-  x.fillText('STATUS: PENDING UNTIL BALLOT CAST — REGISTER AT VOTE.GOV', 72, 540);
+  x.fillText('NON-TRANSFERABLE · NON-PURCHASABLE · REDEEMABLE ONLY AT YOUR POLLING PLACE', W / 2, 486);
   x.font = '15px "Courier Prime", monospace';
   x.fillStyle = '#55534f';
-  x.fillText(`FILED ${new Date().toLocaleDateString('en-US')} · CANCELTHEIRVOTE`, 72, 566);
+  x.fillText(`STATUS: PENDING UNTIL BALLOT CAST — REGISTER AT VOTE.GOV · ISSUED ${new Date().toLocaleDateString('en-US')}`, W / 2, 516);
 
   // stamp
   x.save();
-  x.translate(W - 210, H - 190);
+  x.translate(W - 210, H - 130);
   x.rotate(-0.14);
   x.strokeStyle = 'rgba(181,39,29,0.85)';
   x.lineWidth = 5;
@@ -531,8 +596,8 @@ async function downloadCertificate(id) {
 }
 
 async function shareCancel(id, btn) {
-  const c = ROSTER.find((r) => r.id === id);
-  const text = `I just pledged to cancel out ${c.name}'s vote in ${STATES[c.state]} — by voting. Their ballot has been canceled ${fmt(c.count)} times (it was only worth 1).`;
+  const t = ROSTER.find((r) => r.id === id);
+  const text = `I just pledged my vote against ${t.name} — ${usd(t.totalUsd)} of influence on the ledger, and my ballot is worth $100 of it that money can't buy. ${usd(t.count * RATE)} neutralized so far.`;
   try {
     const cv = await drawCertificate(id);
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
@@ -553,5 +618,5 @@ async function shareCancel(id, btn) {
 
 boot().catch((err) => {
   console.error(err);
-  $('#celebGrid').innerHTML = '<p class="empty-note">The bureau is experiencing technical difficulties. Your grievance persists.</p>';
+  $('#celebGrid').innerHTML = '<p class="empty-note">The currency desk is experiencing technical difficulties. The money, regrettably, is fine.</p>';
 });

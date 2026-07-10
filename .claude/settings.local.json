@@ -9,7 +9,15 @@
       "Bash(git init *)",
       "Bash(git add *)",
       "Bash(git commit -q -m 'Initial commit: Cancel Their Vote site + layout redesign spec *)",
-      "Bash(git commit -q -m 'Spec self-review fix: remove unused snapshot anchor *)"
+      "Bash(git commit -q -m 'Spec self-review fix: remove unused snapshot anchor *)",
+      "Bash(git commit -q -m 'docs: layout redesign implementation plan *)",
+      "Bash(git checkout *)",
+      "Bash(node --check public/app.js)",
+      "Bash(curl -s http://localhost:4680/)",
+      "Bash(git commit *)",
+      "Bash(curl -s http://localhost:4680/api/leaderboard?limit=5)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('rows:',j.leaderboard.length\\)}\\)\")",
+      "Bash(grep -n \"fmt\\\\|function \\\\$\\\\|async function api\\\\|api\\(\" /Users/jordankahn/Documents/cancel-their-vote/public/app.js)"
     ]
   }
 }
