@@ -1,8 +1,10 @@
-# Cancel Their Vote
+# Cancel Their Vote — Official Influence Cancellation Ledger
 
-Satirical GOTV site: pledge to "cancel out" a famous person's vote in your state —
-by registering and actually voting. Votes don't literally cancel; that's the joke,
-and the fine print says so loudly.
+Satirical GOTV site: corporate PACs put real money into federal elections; you pledge
+your vote against a line item at the Bureau's Official Exchange Rate (1 vote = $100,
+derived from $15.9B of 2024 federal election spending ÷ ~155M ballots, per OpenSecrets).
+Votes don't literally cancel dollars — that's the joke, and the fine print says so loudly.
+Inspired by the [Integrity Index](https://integrityindex.us) (unaffiliated; collab wanted).
 
 ## Run
 
@@ -18,33 +20,44 @@ write-through persistence to `data/state.json` (delete it to reset).
 ## What it stores
 
 Per pledge: a counter increment and an optional first name (≤20 chars, sanitized),
-shown in the public ticker. Nothing else — no emails, no accounts, no cookies,
-no analytics. The user's state choice lives in their own localStorage.
+shown in the public wire. Nothing else — no emails, no accounts, no cookies,
+no analytics.
+
+## Data
+
+`data/pacs.json` — 66 corporate PACs across 11 industries with 2024-cycle FEC
+contribution totals, rounded to the nearest $100,000, each with source + as-of date.
+**Figures are curated estimates and MUST be verified against FEC/OpenSecrets before
+any public launch.** The schema (`id, name, industry, totalUsd, blurb, source, asOf`)
+is deliberately feed-shaped so an Integrity Index live feed can replace it without
+frontend changes.
 
 ## API
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/roster` | All celebs + cancellation counts |
-| `GET /api/stats` | Total cancellations, most-canceled, state coverage |
-| `GET /api/leaderboard?limit=10` | All-time most canceled |
-| `GET /api/trending?limit=10` | Most canceled in last 24h |
-| `GET /api/feed?limit=25` | Recent pledge events (ticker) |
+| `GET /api/roster` | All targets + pledge counts |
+| `GET /api/stats` | Total pledges, most-neutralized, outstanding ledger total |
+| `GET /api/leaderboard?limit=10` | Most neutralized, all-time |
+| `GET /api/trending?limit=10` | Most neutralized, last 24h |
+| `GET /api/feed?limit=25` | Recent pledge events (wire) |
 | `POST /api/cancel` | `{id, name?, times?}` → increments (rate-limited 30/min/IP) |
+
+Counts are votes; the client converts to dollars (×$100).
 
 ## Content rules (the legal guardrails — keep them)
 
-- **Names only, never photos** of celebrities (photo copyright is the sharpest claim).
+- **We allege arithmetic, not crimes.** Every figure is a lawful, publicly disclosed
+  FEC contribution. Blurbs joke about money and math, never accuse anyone of corruption.
+- **Nominative use only** — company/PAC names in commentary; never logos or trademarks.
+- **Never map a target to specific candidates** to vote for/against (express-advocacy
+  line). Users do their own homework via Integrity Index / OpenSecrets links.
 - **No prizes, sweepstakes, or rewards** for pledging/registering/voting (52 U.S.C. §10307(c)).
-- **Never assert how anyone votes** — copy always frames it as the *user's* speculation;
-  ballots are secret. "Home states" are hedged as reported/speculative.
-- **Link out** to vote.gov for registration; never collect registrations (state TPVRO laws).
-- Honor removal requests from named individuals (see terms §9).
-- Roster: `data/celebrities.json` — id, name, state, tag, blurb. Blurbs punch at fame,
-  never at how someone votes.
+- **Link out** to vote.gov for registration; never collect registrations.
+- Honor removal/correction requests from named organizations (see terms §9).
 
 ## Deploy notes
 
-Single Node process; any host works (Fly.io, Render, a $5 VPS). For real traffic,
-swap the JSON-file store for Redis/SQLite — the API surface is 6 endpoints.
-Set `DEMO_SEED=0` before launch.
+Single Node process; any host works. For real traffic, swap the JSON-file store for
+Redis/SQLite — the API surface is 6 endpoints. Set `DEMO_SEED=0` and verify
+`data/pacs.json` figures before launch.
