@@ -28,6 +28,7 @@ let currentSheet = 1;
 const SHEET_SIZE = 12;
 const myStamps = new Map(); // celeb id -> times stamped this session
 let boardMode = 'leader';
+let lastStatsTotal = 0;
 
 // ---------------------------------------------------------------------------
 // Data loading
@@ -111,6 +112,7 @@ function buildFilters() {
 // ---------------------------------------------------------------------------
 
 function renderStats(stats, quiet) {
+  lastStatsTotal = stats.total;
   countTo($('#statTotal'), stats.total, quiet);
   countTo($('#indexTotal'), stats.total, quiet);
   $('#statStates').textContent = stats.states;
@@ -336,6 +338,9 @@ async function cancelVote(id) {
   const countEl = row.querySelector('[data-count]');
   celeb.count += 1;
   countEl.textContent = fmt(celeb.count);
+  lastStatsTotal += 1;
+  countTo($('#statTotal'), lastStatsTotal, true);
+  countTo($('#indexTotal'), lastStatsTotal, true);
 
   const actions = row.querySelector('.brow-actions');
   actions.hidden = false;
