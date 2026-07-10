@@ -129,11 +129,18 @@ function initIndexSpy() {
     targets.forEach((t, i) => {
       if (t && t.getBoundingClientRect().top <= 80) current = i;
     });
-    links.forEach((a, i) => a.classList.toggle('is-current', i === current));
+    links.forEach((a, i) => {
+      a.classList.toggle('is-current', i === current);
+      if (i === current) a.setAttribute('aria-current', 'true');
+      else a.removeAttribute('aria-current');
+    });
   };
   document.addEventListener('scroll', () => {
     if (!ticking) { ticking = true; requestAnimationFrame(update); }
   }, { passive: true });
+  window.addEventListener('resize', () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(update); }
+  });
   update();
 }
 
