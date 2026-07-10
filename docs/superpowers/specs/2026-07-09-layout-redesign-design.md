@@ -38,8 +38,8 @@ New order, top to bottom:
 2. Cancellation wire (unchanged)
 3. **Sticky index bar (new)**
 4. Instructions + intake form (unchanged, incl. specimen stamp)
-5. **Returns snapshot (new)** — anchor `#returns-snapshot`, visually part of
-   the intake→ballot flow
+5. **Returns snapshot (new)** — no anchor of its own (the index bar's RETURNS
+   link targets Part 2); visually part of the intake→ballot flow
 6. Part 1 — Ballot (anchor `#ballot`)
 7. Part 2 — Full returns (anchor `#returns`)
 8. Part 3 — Notes on methodology (anchor `#methodology`)
