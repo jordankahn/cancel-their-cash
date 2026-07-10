@@ -37,6 +37,7 @@ async function api(path) {
 
 async function boot() {
   buildStatePicker();
+  initIndexSpy();
   $('#filedBy').value = localStorage.getItem('ctv-name') || '';
   $('#filedBy').addEventListener('change', () => {
     localStorage.setItem('ctv-name', $('#filedBy').value.trim());
@@ -77,7 +78,7 @@ function buildStatePicker() {
     currentState = sel.value;
     localStorage.setItem('ctv-state', currentState);
     renderGrid();
-    $('#rosterBar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('#ballot').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 
@@ -87,6 +88,7 @@ function buildStatePicker() {
 
 function renderStats(stats, quiet) {
   countTo($('#statTotal'), stats.total, quiet);
+  countTo($('#indexTotal'), stats.total, quiet);
   $('#statStates').textContent = stats.states;
   if (stats.top) $('#statTop').textContent = stats.top.name;
 }
@@ -117,6 +119,24 @@ function ago(ms) {
   return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
 }
 
+function initIndexSpy() {
+  const links = [...document.querySelectorAll('.index-links a')];
+  const targets = links.map((a) => document.querySelector(a.getAttribute('href')));
+  let ticking = false;
+  const update = () => {
+    ticking = false;
+    let current = -1;
+    targets.forEach((t, i) => {
+      if (t && t.getBoundingClientRect().top <= 80) current = i;
+    });
+    links.forEach((a, i) => a.classList.toggle('is-current', i === current));
+  };
+  document.addEventListener('scroll', () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(update); }
+  }, { passive: true });
+  update();
+}
+
 function renderTicker(feed) {
   const items = feed.map((f) =>
     `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A registered grudge-holder')} canceled ${escapeHtml(f.celeb)}'s vote in ${f.state}${f.times > 1 ? ` ×${f.times}` : ''} · ${ago(f.agoMs)}</span>`
@@ -139,7 +159,7 @@ function renderGrid() {
     : ROSTER.filter((c) => c.state === currentState)
   ).sort((a, b) => b.count - a.count);
 
-  $('#rosterBar').textContent = currentState === 'ALL'
+  $('#ballot').textContent = currentState === 'ALL'
     ? `Part 1 — Cancelable residents on file (${list.length})`
     : `Part 1 — Cancelable residents of ${STATES[currentState]} (${list.length} on file)`;
   $('#rosterSub').textContent = currentState === 'ALL'

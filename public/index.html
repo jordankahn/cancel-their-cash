@@ -34,6 +34,16 @@
     <div class="wire-clip"><div class="wire-track" id="tickerTrack"></div></div>
   </div>
 
+  <nav class="index-bar" id="indexBar" aria-label="Section index">
+    <div class="index-links">
+      <a href="#ballot">Ballot</a>
+      <a href="#returns">Returns</a>
+      <a href="#methodology">Methodology</a>
+      <a href="#fine-print">Fine print</a>
+    </div>
+    <span class="index-total"><strong id="indexTotal">0</strong>&nbsp;filed</span>
+  </nav>
+
   <div class="specimen" aria-hidden="true">Specimen · Not an actual ballot</div>
 
   <section class="intake">
@@ -70,12 +80,12 @@
     </div>
   </section>
 
-  <div class="part-bar" id="rosterBar">Part 1 — Cancelable residents on file</div>
+  <div class="part-bar" id="ballot">Part 1 — Cancelable residents on file</div>
   <p class="part-note" id="rosterSub">Reported home states. We don't know how anyone votes. Neither do you. That's the point.</p>
 
   <section class="ballot-grid" id="celebGrid"></section>
 
-  <div class="part-bar">Part 2 — Unofficial returns <span class="part-bar-right">51 of 51 states reporting · 0% of anything legally affected</span></div>
+  <div class="part-bar" id="returns">Part 2 — Unofficial returns <span class="part-bar-right">51 of 51 states reporting · 0% of anything legally affected</span></div>
 
   <section class="returns">
     <div class="table-tabs" role="tablist">
@@ -85,7 +95,7 @@
     <ol class="rtable" id="boardList"></ol>
   </section>
 
-  <div class="part-bar">Part 3 — Notes on methodology</div>
+  <div class="part-bar" id="methodology">Part 3 — Notes on methodology</div>
 
   <section class="notes">
     <div class="note">
@@ -115,7 +125,7 @@
     </div>
   </section>
 
-  <footer class="fine-print">
+  <footer class="fine-print" id="fine-print">
     <p><strong>The fine print.</strong> This is satire with a turnout problem to solve. No person
     named on this form endorses, sponsors, or has anything to do with it. Ballots are secret; any
     guess about how anyone votes is speculation you brought with you. &ldquo;Home states&rdquo; are
