@@ -281,29 +281,29 @@ button { cursor: pointer; font-family: inherit; color: inherit; }
 
 /* ---------- exchange exhibit + notes ---------- */
 
-.exhibit { padding: 22px 26px; border-bottom: 1px solid var(--line); background:
-  repeating-linear-gradient(transparent, transparent 27px, var(--line-soft) 27px, var(--line-soft) 28px); }
-.exhibit-math { font-family: var(--font-mono); font-size: 1rem; max-width: 560px; }
-.em-line { display: block; padding: 1px 0; }
-.em-note { color: var(--ink-60); font-size: 0.76em; letter-spacing: 0.03em; text-transform: uppercase; }
-.em-result { font-weight: 700; color: var(--green); border-top: 1.5px solid var(--ink); margin-top: 3px; padding-top: 4px; display: inline-block; }
-.exhibit-rate { margin-top: 14px; font-size: 1.05rem; }
-.exhibit-rate strong { font-family: var(--font-mono); font-weight: 700; border: 2px solid var(--green); color: var(--green); padding: 3px 10px 1px; letter-spacing: 0.05em; white-space: nowrap; }
-.exhibit-foot { display: inline-block; margin-left: 10px; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-60); }
+.exhibit { padding: 30px 26px; border-bottom: 1px solid var(--line); }
+.exhibit-math { font-family: var(--font-mono); font-size: 1.06rem; line-height: 1.85; }
+.em-line { display: block; }
+.em-note { color: var(--ink-60); font-size: 0.74em; letter-spacing: 0.04em; text-transform: uppercase; margin-left: 6px; }
+.em-result { font-weight: 700; color: var(--green); border-top: 1.5px solid var(--ink); margin-top: 6px; padding-top: 6px; display: inline-block; }
+.exhibit-rate { margin-top: 22px; font-size: 1.08rem; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.exhibit-rate strong { font-family: var(--font-mono); font-weight: 700; border: 2px solid var(--green); color: var(--green); padding: 4px 12px 2px; letter-spacing: 0.05em; white-space: nowrap; }
+.exhibit-foot { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-60); }
 
-.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-.note { padding: 18px 26px 20px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.note h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; margin-bottom: 7px; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); border-top: 1px solid var(--line); }
+.note { padding: 20px 26px 22px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.note h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.08rem; margin-bottom: 8px; color: var(--green); }
 .note p { font-size: 0.9rem; color: var(--ink-70); }
 .note em { font-style: italic; color: var(--ink); }
 
 /* ---------- fine print + foot ---------- */
 
-.fine-print { padding: 22px 26px; font-size: 0.8rem; color: var(--ink-60); border-bottom: 1.5px solid var(--rule); }
-.fine-print p { max-width: 88ch; margin-bottom: 10px; }
-.fine-print a { color: var(--ink-60); }
+.fine-print { padding: 26px 26px 28px; font-size: 0.8rem; color: var(--ink-60); background: var(--paper-2); border-bottom: 1.5px solid var(--rule); }
+.fine-print p { max-width: 78ch; margin: 0 auto 12px; }
+.fine-print p:last-child { margin-bottom: 0; }
+.fine-print a { color: var(--green); }
 .fine-print strong { color: var(--ink); }
-.bfoot { background: var(--green); color: var(--paper); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; padding: 12px 20px; }
+.bfoot { background: var(--green); color: var(--paper); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; padding: 13px 20px; }
 
 /* ---------- sticky wallet bar ---------- */
 
