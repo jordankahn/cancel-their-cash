@@ -1,9 +1,12 @@
-/* Cancel Their Vote — frontend, money-pivot edition. No frameworks, no
-   tracking, no data beyond an optional first name attached to a number.
-   A pledge = one vote = $100 of influence at the Official Exchange Rate. */
+/* Cancel Their Vote — frontend, chip-allocation edition. No frameworks, no
+   tracking. You hold one $100 vote = ten $10 chips; you allocate them across
+   corporate PACs in your own browser, then cast once. */
 'use strict';
 
-const RATE = 100; // dollars per vote; the Bureau does not make change
+const BUDGET_USD = 100;
+const CHIP_USD = 10;
+const BUDGET_CHIPS = BUDGET_USD / CHIP_USD; // 10
+const WALLET_KEY = 'ctv-wallet-v1';
 
 const STATES = {
   AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
@@ -25,13 +28,72 @@ const fmt = (n) => Number(n).toLocaleString('en-US');
 const usd = (n) => '$' + fmt(Math.round(n));
 
 let ROSTER = [];
+const BY_ID = new Map();
 let currentTag = 'ALL';
 let searchQuery = '';
 let currentSheet = 1;
 const SHEET_SIZE = 12;
-const myStamps = new Map(); // target id -> times stamped this session
 let boardMode = 'leader';
-let lastStatsTotal = 0;
+
+// ---------------------------------------------------------------------------
+// Wallet (browser-local; no account)
+// ---------------------------------------------------------------------------
+
+function loadWallet() {
+  try {
+    const w = JSON.parse(localStorage.getItem(WALLET_KEY));
+    if (w && typeof w.alloc === 'object') return { alloc: w.alloc || {}, cast: !!w.cast, name: w.name || '' };
+  } catch (_) { /* fresh */ }
+  return { alloc: {}, cast: false, name: '' };
+}
+let wallet = loadWallet();
+function saveWallet() { localStorage.setItem(WALLET_KEY, JSON.stringify(wallet)); }
+
+const chipsOn = (id) => wallet.alloc[id] || 0;
+const placedChips = () => Object.values(wallet.alloc).reduce((s, n) => s + n, 0);
+const remainingChips = () => BUDGET_CHIPS - placedChips();
+
+function addChip(id) {
+  if (wallet.cast || remainingChips() <= 0) return;
+  wallet.alloc[id] = chipsOn(id) + 1;
+  saveWallet();
+  afterWalletChange(id);
+}
+function removeChip(id) {
+  if (wallet.cast || chipsOn(id) <= 0) return;
+  wallet.alloc[id] = chipsOn(id) - 1;
+  if (wallet.alloc[id] === 0) delete wallet.alloc[id];
+  saveWallet();
+  afterWalletChange(id);
+}
+function afterWalletChange(id) {
+  updateRow(id);      // patch only the touched row so its button survives the click
+  renderWalletUI();
+  // every + button also depends on the global remaining budget
+  const dis = wallet.cast || remainingChips() <= 0;
+  document.querySelectorAll('.lrow [data-plus]').forEach((b) => { b.disabled = dis; });
+}
+
+function updateRow(id) {
+  const row = document.querySelector(`.lrow[data-id="${CSS.escape(id)}"]`);
+  const t = BY_ID.get(id);
+  if (!row || !t) return;
+  const yours = chipsOn(id);
+  const over = balanceUsd(t) < 0;
+  const inkPct = pctOf(pledgedUsd(t), t);
+  const youPct = pctOf(yourPendingUsd(t), t);
+  row.classList.toggle('is-yours', yours > 0);
+  row.classList.toggle('is-overdrawn', over);
+  row.querySelector('.meter-ink').style.width = inkPct.toFixed(2) + '%';
+  const my = row.querySelector('.meter-you');
+  my.style.left = inkPct.toFixed(2) + '%';
+  my.style.width = Math.min(100 - inkPct, youPct).toFixed(2) + '%';
+  row.querySelector('.lrow-status').innerHTML = over
+    ? `<span class="over-tag">OVERDRAWN ${usd(-balanceUsd(t))} past zero</span>`
+    : `${usd(totalNeutralized(t))} canceled${yours ? ` · <span class="you-tag">you: ${usd(yours * CHIP_USD)}</span>` : ''}`;
+  row.querySelector('.step-val').textContent = usd(yours * CHIP_USD);
+  row.querySelector('[data-minus]').disabled = wallet.cast || yours === 0;
+}
 
 // ---------------------------------------------------------------------------
 // Data loading
@@ -45,21 +107,20 @@ async function api(path) {
 
 async function boot() {
   initIndexSpy();
-  $('#filedBy').value = localStorage.getItem('ctv-name') || '';
-  $('#filedBy').addEventListener('change', () => {
-    localStorage.setItem('ctv-name', $('#filedBy').value.trim());
-  });
+  buildSpendPicker();
+  wireCastControls();
 
   const [roster, stats, feed] = await Promise.all([
     api('/api/roster'), api('/api/stats'), api('/api/feed?limit=25'),
   ]);
   ROSTER = roster.targets;
+  ROSTER.forEach((t) => BY_ID.set(t.id, t));
   buildFilters();
   renderStats(stats);
   renderGrid();
   renderBoard();
-  renderSnapshot();
   renderTicker(feed.feed);
+  renderWalletUI();
   setInterval(refreshLive, 25000);
 }
 
@@ -69,7 +130,9 @@ async function refreshLive() {
     renderStats(stats, true);
     renderTicker(feed.feed);
     renderBoard();
-    renderSnapshot();
+    // Deliberately do NOT rebuild the ledger grid here — that would destroy a
+    // stepper button mid-click and interrupt allocation. The crowd totals in
+    // visible rows refresh on the next user-driven render (filter/page/cast).
   } catch (_) { /* offline blip; try again next tick */ }
 }
 
@@ -81,42 +144,32 @@ function buildFilters() {
   const tags = [...new Set(ROSTER.map((t) => t.industry))].sort();
   const tagSel = $('#tagPick');
   tagSel.innerHTML = '<option value="ALL">All industries</option>' +
-    tags.map((t) => `<option value="${t}">${t.charAt(0) + t.slice(1).toLowerCase()}</option>`).join('');
-  tagSel.addEventListener('change', () => {
-    currentTag = tagSel.value;
-    currentSheet = 1;
-    renderGrid();
-  });
+    tags.map((t) => `<option value="${t}">${tagLabel(t)}</option>`).join('');
+  tagSel.addEventListener('change', () => { currentTag = tagSel.value; currentSheet = 1; renderGrid(); });
   $('#docketSearch').addEventListener('input', (e) => {
-    searchQuery = e.target.value.trim().toLowerCase();
-    currentSheet = 1;
-    renderGrid();
+    searchQuery = e.target.value.trim().toLowerCase(); currentSheet = 1; renderGrid();
   });
 }
 
 // ---------------------------------------------------------------------------
-// Stats + ticker
+// Stats, ticker, index spy
 // ---------------------------------------------------------------------------
 
 function renderStats(stats, quiet) {
-  lastStatsTotal = stats.total;
-  countTo($('#statTotal'), stats.total * RATE, quiet, usd);
-  countTo($('#indexTotal'), stats.total * RATE, quiet, usd);
-  $('#statOutstanding').textContent = usd(stats.outstanding);
-  if (stats.top) $('#statTop').textContent = stats.top.name;
+  countTo($('#indexTotal'), stats.total, quiet, usd);
+  const live = $('#heroLive');
+  if (live) live.innerHTML =
+    `Voters have already placed <strong>${usd(stats.total)}</strong> against <strong>${usd(stats.outstanding)}</strong> of disclosed corporate PAC money. Your $100 is next.`;
 }
 
 function countTo(el, target, quiet, format = fmt) {
+  if (!el) return;
   const start = Number((el.textContent || '0').replace(/[^0-9]/g, '')) || 0;
   if (quiet && start === target) return;
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    el.textContent = format(target);
-    return;
-  }
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = format(target); return; }
   const t0 = performance.now();
-  const dur = 900;
   const step = (t) => {
-    const k = Math.min(1, (t - t0) / dur);
+    const k = Math.min(1, (t - t0) / 900);
     const eased = 1 - Math.pow(1 - k, 3);
     el.textContent = format(Math.round(start + (target - start) * eased));
     if (k < 1) requestAnimationFrame(step);
@@ -132,6 +185,17 @@ function ago(ms) {
   return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
 }
 
+function renderTicker(feed) {
+  const items = feed.map((f) =>
+    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A voter')} placed ${usd(f.usd)} on ${escapeHtml(f.target)} · ${ago(f.agoMs)}</span>`
+  ).join('');
+  $('#tickerTrack').innerHTML = items + items;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function initIndexSpy() {
   const links = [...document.querySelectorAll('.index-links a')];
   const targets = links.map((a) => document.querySelector(a.getAttribute('href')));
@@ -139,61 +203,27 @@ function initIndexSpy() {
   const update = () => {
     ticking = false;
     let current = -1;
-    targets.forEach((t, i) => {
-      if (t && t.getBoundingClientRect().top <= 80) current = i;
-    });
+    targets.forEach((t, i) => { if (t && t.getBoundingClientRect().top <= 90) current = i; });
     links.forEach((a, i) => {
       a.classList.toggle('is-current', i === current);
-      if (i === current) a.setAttribute('aria-current', 'true');
-      else a.removeAttribute('aria-current');
+      if (i === current) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
     });
   };
-  document.addEventListener('scroll', () => {
-    if (!ticking) { ticking = true; requestAnimationFrame(update); }
-  }, { passive: true });
-  window.addEventListener('resize', () => {
-    if (!ticking) { ticking = true; requestAnimationFrame(update); }
-  });
+  document.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  window.addEventListener('resize', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } });
   update();
 }
 
-function renderTicker(feed) {
-  const items = feed.map((f) =>
-    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A registered grudge-holder')} neutralized ${usd(f.times * RATE)} of ${escapeHtml(f.target)}'s influence · ${ago(f.agoMs)}</span>`
-  ).join('');
-  $('#tickerTrack').innerHTML = items + items; // duplicated for a seamless loop
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-async function renderSnapshot() {
-  try {
-    const [{ leaderboard }, { trending }] = await Promise.all([
-      api('/api/leaderboard?limit=5'), api('/api/trending?limit=1'),
-    ]);
-    $('#snapList').innerHTML = leaderboard.map((r, i) => `
-      <li>
-        <span class="rank">${String(i + 1).padStart(2, '0')}</span>
-        <span class="nm">${escapeHtml(r.name)}</span>
-        <span class="dots"></span>
-        <span class="ct">${usd(r.count * RATE)}</span>
-      </li>
-    `).join('');
-    const trend = $('#snapTrend');
-    if (trending.length) {
-      trend.hidden = false;
-      trend.textContent = `Trending today: ${trending[0].name} −${usd(trending[0].dayCount * RATE).slice(1)} and falling`;
-    } else {
-      trend.hidden = true;
-    }
-  } catch (_) { /* snapshot is decorative; boards remain the source of truth */ }
-}
-
 // ---------------------------------------------------------------------------
-// The ledger (Part 1)
+// The ledger
 // ---------------------------------------------------------------------------
+
+const tagLabel = (t) => t.charAt(0) + t.slice(1).toLowerCase();
+const pledgedUsd = (t) => t.pledged || 0;
+const yourPendingUsd = (t) => (wallet.cast ? 0 : chipsOn(t.id) * CHIP_USD);
+const totalNeutralized = (t) => pledgedUsd(t) + yourPendingUsd(t);
+const balanceUsd = (t) => t.totalUsd - totalNeutralized(t);
+const pctOf = (usdVal, t) => Math.min(100, (usdVal / t.totalUsd) * 100);
 
 function filteredRoster() {
   return ROSTER.filter((t) =>
@@ -202,138 +232,207 @@ function filteredRoster() {
   ).sort((a, b) => b.totalUsd - a.totalUsd);
 }
 
-function neutralizedUsd(t) { return t.count * RATE; }
-function balanceUsd(t) { return t.totalUsd - neutralizedUsd(t); }
-function pct(t) { return Math.min(999, (neutralizedUsd(t) / t.totalUsd) * 100); }
-
-function tagLabel(t) { return t.charAt(0) + t.slice(1).toLowerCase(); }
-
 function renderRollup(list) {
   const rollup = $('#rollup');
   if (currentTag === 'ALL' || !list.length) { rollup.hidden = true; return; }
   const total = list.reduce((s, t) => s + t.totalUsd, 0);
-  const neut = list.reduce((s, t) => s + neutralizedUsd(t), 0);
+  const neut = list.reduce((s, t) => s + totalNeutralized(t), 0);
   rollup.hidden = false;
-  rollup.innerHTML = `
-    <span class="rollup-name">${escapeHtml(tagLabel(currentTag))} — industry ledger</span>
-    <span class="rollup-fig">OUTSTANDING ${usd(total)}</span>
-    <span class="rollup-fig rollup-neut">NEUTRALIZED ${usd(neut)} (${((neut / total) * 100).toFixed(1)}%)</span>
-  `;
+  rollup.innerHTML =
+    `<span class="rollup-name">${escapeHtml(tagLabel(currentTag))} — industry total</span>
+     <span class="rollup-fig">OUTSTANDING ${usd(total)}</span>
+     <span class="rollup-fig rollup-neut">NEUTRALIZED ${usd(neut)} · ${((neut / total) * 100).toFixed(1)}%</span>`;
 }
 
 function renderGrid() {
-  const grid = $('#celebGrid');
+  const grid = $('#ledgerGrid');
   const list = filteredRoster();
 
-  const parts = ['Schedule of outstanding influence'];
+  const parts = ['The Money'];
   if (currentTag !== 'ALL') parts.push(tagLabel(currentTag));
   if (searchQuery) parts.push(`“${searchQuery}”`);
-  const barText = `Part 1 — ${parts.join(' · ')} (${list.length} line item${list.length === 1 ? '' : 's'})`;
-  if ($('#ballot').textContent !== barText) $('#ballot').textContent = barText;
+  const barText = `${parts.join(' · ')} (${list.length} PAC${list.length === 1 ? '' : 's'})`;
+  if ($('#ledger').textContent !== barText) $('#ledger').textContent = barText;
 
   renderRollup(list);
 
   if (!list.length) {
-    grid.innerHTML = '<p class="empty-note">No line items match. The money is still out there — loosen a filter and vote anyway.</p>';
-    $('#pager').innerHTML = '';
-    $('#pagerAnnounce').textContent = '';
+    grid.innerHTML = '<p class="empty-note">No PACs match. The money is still out there — clear a filter and place your chips anyway.</p>';
+    $('#pager').innerHTML = ''; $('#pagerAnnounce').textContent = '';
     return;
   }
 
   const totalSheets = Math.ceil(list.length / SHEET_SIZE);
   if (currentSheet > totalSheets) currentSheet = totalSheets;
   const page = list.slice((currentSheet - 1) * SHEET_SIZE, currentSheet * SHEET_SIZE);
+  const locked = wallet.cast;
+  const noBudget = remainingChips() <= 0;
 
   grid.innerHTML = page.map((t) => {
+    const yours = chipsOn(t.id);
     const over = balanceUsd(t) < 0;
-    const stamped = myStamps.has(t.id);
+    const inkPct = pctOf(pledgedUsd(t), t);
+    const youPct = pctOf(yourPendingUsd(t), t);
     return `
-    <article class="brow${over ? ' is-overdrawn' : ''}" data-id="${t.id}">
-      <div class="brow-main">
-        <button class="oval${stamped ? ' is-filled' : ''}" data-id="${t.id}"
-          aria-label="Pledge one vote against ${escapeHtml(t.name)}"></button>
-        <div class="brow-txt">
-          <h3 class="brow-name">${escapeHtml(t.name)}</h3>
-          <p class="brow-meta">${escapeHtml(tagLabel(t.industry))} · ${usd(t.totalUsd)} on ledger</p>
-          <p class="brow-blurb">${escapeHtml(t.blurb)}</p>
-        </div>
+    <article class="lrow${over ? ' is-overdrawn' : ''}${yours ? ' is-yours' : ''}" data-id="${t.id}">
+      <div class="lrow-head">
+        <h3 class="lrow-name">${escapeHtml(t.name)}</h3>
+        <span class="lrow-total">${usd(t.totalUsd)}<span class="lrow-total-lbl"> on the books</span></span>
       </div>
-      <div class="ledger-line">
-        <div class="ledger-meter" role="img" aria-label="${pct(t).toFixed(1)} percent neutralized">
-          <span class="ledger-fill" style="width:${Math.min(100, pct(t)).toFixed(2)}%"></span>
-        </div>
-        <p class="brow-count">
-          ${over
-            ? `<span class="over-balance">BALANCE ${usd(balanceUsd(t)).replace('$-', '−$')} · OVERDRAWN</span>`
-            : `Neutralized <strong data-count>${usd(neutralizedUsd(t))}</strong> of ${usd(t.totalUsd)}`}
-          <span class="dots"></span>
-          <strong class="pct">${pct(t).toFixed(1)}%</strong>
-        </p>
+      <p class="lrow-meta">${escapeHtml(tagLabel(t.industry))}</p>
+      <p class="lrow-blurb">${escapeHtml(t.blurb)}</p>
+      <div class="meter" role="img" aria-label="${(inkPct + youPct).toFixed(0)}% neutralized">
+        <span class="meter-ink" style="width:${inkPct.toFixed(2)}%"></span>
+        <span class="meter-you" style="left:${inkPct.toFixed(2)}%;width:${Math.min(100 - inkPct, youPct).toFixed(2)}%"></span>
       </div>
-      <div class="brow-actions" ${stamped ? '' : 'hidden'}>
-        <p class="brow-status" data-status>${stampStatusText(myStamps.get(t.id) || 0)}</p>
-        <div class="brow-links">
-          <span class="spend-where">
-            <label for="spend-${t.id}">Where will you spend it?</label>
-            <select id="spend-${t.id}" data-spend aria-label="Pick your state for registration info">
-              <option value="">state…</option>
-              ${Object.entries(STATES).map(([c, n]) => `<option value="${c.toLowerCase()}">${n}</option>`).join('')}
-            </select>
-          </span>
-          <a class="act-register" data-register href="https://vote.gov" target="_blank" rel="noopener">Register to vote →</a>
-          <button type="button" data-cert>Certificate of deposit</button>
-          <button type="button" data-share>Share</button>
-          <button type="button" data-again>Deposit another $100</button>
-        </div>
+      <div class="lrow-foot">
+        <span class="lrow-status">${over
+          ? `<span class="over-tag">OVERDRAWN ${usd(-balanceUsd(t))} past zero</span>`
+          : `${usd(totalNeutralized(t))} canceled${yours ? ` · <span class="you-tag">you: ${usd(yours * CHIP_USD)}</span>` : ''}`}</span>
+        <span class="stepper" ${locked ? 'data-locked' : ''}>
+          <button type="button" class="step-btn" data-minus aria-label="Remove a $10 chip from ${escapeHtml(t.name)}" ${locked || yours === 0 ? 'disabled' : ''}>−</button>
+          <span class="step-val" aria-live="polite">${usd(yours * CHIP_USD)}</span>
+          <button type="button" class="step-btn" data-plus aria-label="Place a $10 chip on ${escapeHtml(t.name)}" ${locked || noBudget ? 'disabled' : ''}>+</button>
+        </span>
       </div>
-      ${over ? '<span class="stamp-impression is-static" style="--rot:-5deg;right:10px;top:12px">OVERDRAWN</span>'
-        : (stamped ? '<span class="stamp-impression is-static" style="--rot:-6deg;right:10px;top:12px">CANCELED</span>' : '')}
-    </article>
-  `; }).join('');
+      ${over ? '<span class="paper-stamp" style="--rot:-5deg">OVERDRAWN</span>' : ''}
+    </article>`;
+  }).join('');
 
   renderPager(totalSheets);
 }
 
-function stampStatusText(times) {
-  return times <= 1
-    ? 'Status: pending. Your $100 clears only when you cast an actual ballot.'
-    : `You've deposited ${usd(times * RATE)} of intent. Each $100 needs a voter behind it — bring ${times - 1} friend${times - 1 === 1 ? '' : 's'}. Still pending until you vote.`;
+$('#ledgerGrid').addEventListener('click', (e) => {
+  const row = e.target.closest('.lrow'); if (!row) return;
+  if (e.target.closest('[data-plus]')) return addChip(row.dataset.id);
+  if (e.target.closest('[data-minus]')) return removeChip(row.dataset.id);
+});
+
+// ---------------------------------------------------------------------------
+// Wallet UI (hero preview + sticky bar)
+// ---------------------------------------------------------------------------
+
+function chipPips(filled) {
+  let out = '';
+  for (let i = 0; i < BUDGET_CHIPS; i++) out += `<span class="pip${i < filled ? ' is-on' : ''}"></span>`;
+  return out;
 }
 
-function renderPager(totalSheets) {
-  const pager = $('#pager');
-  const announce = $('#pagerAnnounce');
-  if (totalSheets <= 1) {
-    pager.innerHTML = '';
-    if (announce) announce.textContent = '';
+function renderWalletUI() {
+  const placed = placedChips();
+  const placedUsd = placed * CHIP_USD;
+  const remUsd = remainingChips() * CHIP_USD;
+
+  const heroChips = $('#heroChips');
+  if (heroChips) heroChips.innerHTML = chipPips(placed);
+  const heroRem = $('#heroRemaining');
+  if (heroRem) heroRem.textContent = wallet.cast ? 'Cast ✓' : usd(remUsd);
+
+  const bar = $('#walletBar');
+  const msg = $('#walletMsg');
+  const btn = $('#castBtn');
+  $('#walletChips').innerHTML = chipPips(placed);
+
+  if (wallet.cast) {
+    bar.hidden = false;
+    bar.classList.add('is-cast');
+    msg.innerHTML = '<strong>Vote cast ✓</strong> — now go make it real.';
+    btn.disabled = false;
+    btn.textContent = 'View receipt';
     return;
   }
-  if (announce) announce.textContent = `Sheet ${currentSheet} of ${totalSheets}`;
-  const numbers = totalSheets <= 8
-    ? Array.from({ length: totalSheets }, (_, i) =>
-        `<button class="sheet-no${i + 1 === currentSheet ? ' is-current' : ''}" data-sheet="${i + 1}" aria-label="Sheet ${i + 1}"${i + 1 === currentSheet ? ' aria-current="page"' : ''}>${i + 1}</button>`
-      ).join('')
-    : `<span>Sheet ${currentSheet} of ${totalSheets}</span>`;
-  pager.innerHTML = `
-    <button data-sheet="${currentSheet - 1}" ${currentSheet === 1 ? 'disabled' : ''} aria-label="Previous sheet">◀</button>
-    ${numbers}
-    <button data-sheet="${currentSheet + 1}" ${currentSheet === totalSheets ? 'disabled' : ''} aria-label="Next sheet">▶</button>
-  `;
+  bar.classList.remove('is-cast');
+  if (placed === 0) { bar.hidden = true; return; }
+  bar.hidden = false;
+  msg.innerHTML = remUsd > 0
+    ? `<strong>${usd(placedUsd)}</strong> placed · ${usd(remUsd)} left`
+    : '<strong>$100 placed</strong> — your vote is fully loaded.';
+  btn.disabled = false;
+  btn.textContent = remUsd > 0 ? `Cast ${usd(placedUsd)}` : 'Cast my $100';
 }
 
-$('#pager').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-sheet]');
-  if (!btn || btn.disabled) return;
-  const label = btn.getAttribute('aria-label'); // arrow labels or "Sheet N"
-  currentSheet = Number(btn.dataset.sheet);
-  renderGrid();
-  const pager = $('#pager');
-  const target = (label && pager.querySelector(`button[aria-label="${label}"]:not([disabled])`)) ||
-    pager.querySelector('.sheet-no.is-current') ||
-    pager.querySelector('button[data-sheet]:not([disabled])');
-  if (target) target.focus({ preventScroll: true });
-  $('#ballot').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
+// ---------------------------------------------------------------------------
+// Casting
+// ---------------------------------------------------------------------------
+
+function wireCastControls() {
+  const nameInput = $('#walletName');
+  if (nameInput) {
+    nameInput.value = wallet.name || '';
+    nameInput.addEventListener('input', () => { wallet.name = nameInput.value.trim().slice(0, 20); saveWallet(); });
+  }
+  $('#castBtn').addEventListener('click', () => {
+    if (wallet.cast) return openReceipt();
+    castVote();
+  });
+  $('#castClose').addEventListener('click', closeReceipt);
+  $('#castReset').addEventListener('click', resetWallet);
+  $('#castVeil').addEventListener('click', (e) => { if (e.target === $('#castVeil')) closeReceipt(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#castVeil').hidden) closeReceipt(); });
+  $('#certBtn').addEventListener('click', downloadCertificate);
+  $('#shareBtn').addEventListener('click', (e) => shareCast(e.currentTarget));
+  $('#spendState').addEventListener('change', (e) => {
+    const v = e.target.value;
+    $('#registerLink').href = v ? `https://vote.gov/register/${v.toLowerCase()}` : 'https://vote.gov';
+    if (v) localStorage.setItem('ctv-spend-state', v);
+  });
+}
+
+async function castVote() {
+  if (placedChips() === 0) return;
+  const allocations = {};
+  for (const [id, chips] of Object.entries(wallet.alloc)) allocations[id] = chips * CHIP_USD;
+
+  const btn = $('#castBtn');
+  btn.disabled = true; btn.textContent = 'Casting…';
+  try {
+    const res = await fetch('/api/cast', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ allocations, name: wallet.name }),
+    });
+    const out = await res.json();
+    if (!res.ok) { btn.disabled = false; renderWalletUI(); alert(out.error || 'Could not cast.'); return; }
+    // fold into local aggregate so the boards/rows reflect it immediately
+    for (const [id, newTotal] of Object.entries(out.applied)) { const t = BY_ID.get(id); if (t) t.pledged = newTotal; }
+  } catch (_) { /* offline: still let them feel the cast locally */ }
+
+  wallet.cast = true; saveWallet();
+  renderGrid(); renderWalletUI();
+  api('/api/stats').then((s) => renderStats(s, true)).catch(() => {});
+  openReceipt(true);
+}
+
+function allocationRows() {
+  return Object.entries(wallet.alloc)
+    .map(([id, chips]) => ({ t: BY_ID.get(id), usdv: chips * CHIP_USD }))
+    .filter((r) => r.t)
+    .sort((a, b) => b.usdv - a.usdv);
+}
+
+function openReceipt(fresh) {
+  const rows = allocationRows();
+  const total = rows.reduce((s, r) => s + r.usdv, 0);
+  $('#castReceipt').innerHTML = rows.map((r) =>
+    `<li><span class="cr-name">${escapeHtml(r.t.name)}</span><span class="cr-dots"></span><span class="cr-amt">${usd(r.usdv)}</span></li>`
+  ).join('') + `<li class="cr-total"><span class="cr-name">Your vote, deployed</span><span class="cr-dots"></span><span class="cr-amt">${usd(total)}</span></li>`;
+  const saved = localStorage.getItem('ctv-spend-state');
+  if (saved) { $('#spendState').value = saved; $('#registerLink').href = `https://vote.gov/register/${saved.toLowerCase()}`; }
+  const veil = $('#castVeil');
+  veil.hidden = false;
+  veil.classList.toggle('is-fresh', !!fresh);
+  document.body.style.overflow = 'hidden';
+  $('#castClose').focus();
+}
+function closeReceipt() { $('#castVeil').hidden = true; document.body.style.overflow = ''; }
+
+function resetWallet() {
+  wallet = { alloc: {}, cast: false, name: wallet.name };
+  saveWallet();
+  closeReceipt();
+  // clear our local pending; server aggregate stays (their cast already counted)
+  renderGrid(); renderWalletUI();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 // ---------------------------------------------------------------------------
 // Returns tables
@@ -344,31 +443,28 @@ async function renderBoard() {
   try {
     if (boardMode === 'leader') {
       const { leaderboard } = await api('/api/leaderboard?limit=10');
-      drawBoard(list, leaderboard, (r) => usd(r.count * RATE));
+      drawBoard(list, leaderboard, (r) => usd(r.pledged), (r) => r.pledged);
     } else {
       const { trending } = await api('/api/trending?limit=10');
       if (!trending.length) {
-        list.innerHTML = '<li><span class="rank">—</span><span class="who"><span class="nm">A quiet day at the currency desk</span><span class="st">No deposits in 24h</span></span><span class="track"></span><span class="ct"></span></li>';
+        list.innerHTML = '<li><span class="rank">—</span><span class="who"><span class="nm">A quiet day at the currency desk</span><span class="st">No pledges in 24h</span></span><span class="track"></span><span class="ct"></span></li>';
         return;
       }
-      drawBoard(list, trending, (r) => `+${usd(r.dayCount * RATE)}`);
+      drawBoard(list, trending, (r) => `+${usd(r.dayUsd)}`, (r) => r.dayUsd);
     }
-  } catch (_) { /* leave old board */ }
+  } catch (_) { /* keep prior board */ }
 }
 
-function drawBoard(list, rows, ctFn) {
-  const max = Math.max(...rows.map((r) => r.dayCount ?? r.count), 1);
+function drawBoard(list, rows, ctFn, valFn) {
+  const max = Math.max(...rows.map(valFn), 1);
   list.innerHTML = rows.map((r, i) => `
     <li>
       <span class="rank">${String(i + 1).padStart(2, '0')}</span>
-      <span class="who">
-        <span class="nm">${escapeHtml(r.name)}</span>
-        <span class="st">${escapeHtml(tagLabel(r.industry))} · ${usd(r.totalUsd)} on ledger</span>
-      </span>
-      <span class="track"><span class="bar" style="width:${(((r.dayCount ?? r.count) / max) * 100).toFixed(1)}%"></span></span>
+      <span class="who"><span class="nm">${escapeHtml(r.name)}</span>
+        <span class="st">${escapeHtml(tagLabel(r.industry))} · ${usd(r.totalUsd)} on the books</span></span>
+      <span class="track"><span class="bar" style="width:${((valFn(r) / max) * 100).toFixed(1)}%"></span></span>
       <span class="ct">${ctFn(r)}</span>
-    </li>
-  `).join('');
+    </li>`).join('');
 }
 
 $('#tabLeader').addEventListener('click', () => setBoard('leader'));
@@ -383,240 +479,138 @@ function setBoard(mode) {
 }
 
 // ---------------------------------------------------------------------------
-// Pledging (the stamp)
+// Pager
 // ---------------------------------------------------------------------------
 
-$('#celebGrid').addEventListener('click', (e) => {
-  const oval = e.target.closest('.oval');
-  if (oval) return cancelVote(oval.dataset.id);
-  const row = e.target.closest('.brow');
-  if (!row) return;
-  if (e.target.closest('[data-again]')) return cancelVote(row.dataset.id);
-  if (e.target.closest('[data-cert]')) return downloadCertificate(row.dataset.id);
-  if (e.target.closest('[data-share]')) return shareCancel(row.dataset.id, e.target.closest('[data-share]'));
-});
-
-$('#celebGrid').addEventListener('change', (e) => {
-  const sel = e.target.closest('[data-spend]');
-  if (!sel) return;
-  const row = e.target.closest('.brow');
-  const link = row.querySelector('[data-register]');
-  link.href = sel.value ? `https://vote.gov/register/${sel.value}` : 'https://vote.gov';
-  if (sel.value) localStorage.setItem('ctv-spend-state', sel.value);
-});
-
-async function cancelVote(id) {
-  const target = ROSTER.find((t) => t.id === id);
-  const row = document.querySelector(`.brow[data-id="${id}"]`);
-  if (!target || !row) return;
-
-  const times = (myStamps.get(id) || 0) + 1;
-  myStamps.set(id, times);
-
-  row.querySelector('.oval').classList.add('is-filled');
-  slamStamp(row, times);
-  if (navigator.vibrate) navigator.vibrate(25);
-
-  const name = $('#filedBy').value.trim();
-  if (name) localStorage.setItem('ctv-name', name);
-
-  // optimistic bump; corrected by server response
-  target.count += 1;
-  lastStatsTotal += 1;
-  countTo($('#statTotal'), lastStatsTotal * RATE, true, usd);
-  countTo($('#indexTotal'), lastStatsTotal * RATE, true, usd);
-
-  const actions = row.querySelector('.brow-actions');
-  actions.hidden = false;
-  const saved = localStorage.getItem('ctv-spend-state');
-  if (saved) {
-    const sel = row.querySelector('[data-spend]');
-    if (sel && !sel.value) {
-      sel.value = saved;
-      row.querySelector('[data-register]').href = `https://vote.gov/register/${saved}`;
-    }
-  }
-  const status = row.querySelector('[data-status]');
-  status.textContent = stampStatusText(times);
-  updateLedgerLine(row, target);
-
-  try {
-    const res = await fetch('/api/cancel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, name, times: 1 }),
-    });
-    const out = await res.json();
-    if (res.ok) {
-      target.count = out.count;
-      updateLedgerLine(row, target);
-    }
-  } catch (_) { /* the stamp is the experience; counts sync next refresh */ }
+function renderPager(totalSheets) {
+  const pager = $('#pager');
+  const announce = $('#pagerAnnounce');
+  if (totalSheets <= 1) { pager.innerHTML = ''; if (announce) announce.textContent = ''; return; }
+  if (announce) announce.textContent = `Page ${currentSheet} of ${totalSheets}`;
+  const numbers = totalSheets <= 8
+    ? Array.from({ length: totalSheets }, (_, i) =>
+        `<button class="sheet-no${i + 1 === currentSheet ? ' is-current' : ''}" data-sheet="${i + 1}" aria-label="Page ${i + 1}"${i + 1 === currentSheet ? ' aria-current="page"' : ''}>${i + 1}</button>`).join('')
+    : `<span>Page ${currentSheet} of ${totalSheets}</span>`;
+  pager.innerHTML =
+    `<button data-sheet="${currentSheet - 1}" ${currentSheet === 1 ? 'disabled' : ''} aria-label="Previous page">◀</button>
+     ${numbers}
+     <button data-sheet="${currentSheet + 1}" ${currentSheet === totalSheets ? 'disabled' : ''} aria-label="Next page">▶</button>`;
 }
 
-function updateLedgerLine(row, target) {
-  const over = balanceUsd(target) < 0;
-  const line = row.querySelector('.brow-count');
-  const fill = row.querySelector('.ledger-fill');
-  fill.style.width = Math.min(100, pct(target)).toFixed(2) + '%';
-  line.innerHTML = over
-    ? `<span class="over-balance">BALANCE ${usd(balanceUsd(target)).replace('$-', '−$')} · OVERDRAWN</span><span class="dots"></span><strong class="pct">${pct(target).toFixed(1)}%</strong>`
-    : `Neutralized <strong data-count>${usd(neutralizedUsd(target))}</strong> of ${usd(target.totalUsd)}<span class="dots"></span><strong class="pct">${pct(target).toFixed(1)}%</strong>`;
-  if (over && !row.classList.contains('is-overdrawn')) {
-    row.classList.add('is-overdrawn');
-    const imp = document.createElement('span');
-    imp.className = 'stamp-impression';
-    imp.textContent = 'OVERDRAWN';
-    imp.style.setProperty('--rot', '-5deg');
-    imp.style.right = '10px';
-    imp.style.top = '12px';
-    row.appendChild(imp);
-  }
-}
+$('#pager').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-sheet]');
+  if (!btn || btn.disabled) return;
+  const label = btn.getAttribute('aria-label');
+  currentSheet = Number(btn.dataset.sheet);
+  renderGrid();
+  const pager = $('#pager');
+  const target = (label && pager.querySelector(`button[aria-label="${label}"]:not([disabled])`)) ||
+    pager.querySelector('.sheet-no.is-current') || pager.querySelector('button[data-sheet]:not([disabled])');
+  if (target) target.focus({ preventScroll: true });
+  $('#ledger').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
-function slamStamp(row, times) {
-  const imp = document.createElement('span');
-  imp.className = 'stamp-impression';
-  imp.textContent = 'CANCELED';
-  imp.style.setProperty('--rot', (Math.random() * 14 - 7).toFixed(1) + 'deg');
-  if (times === 1) {
-    imp.style.right = '10px';
-    imp.style.top = '12px';
-  } else {
-    imp.style.left = (8 + Math.random() * 50) + '%';
-    imp.style.top = (10 + Math.random() * 60) + '%';
-    imp.style.fontSize = (0.8 + Math.random() * 0.5) + 'rem';
-  }
-  row.appendChild(imp);
-  const imps = row.querySelectorAll('.stamp-impression');
-  if (imps.length > 9) imps[0].remove();
+// ---------------------------------------------------------------------------
+// Spend-state picker (in receipt)
+// ---------------------------------------------------------------------------
+
+function buildSpendPicker() {
+  $('#spendState').innerHTML = '<option value="">your state…</option>' +
+    Object.entries(STATES).map(([c, n]) => `<option value="${c}">${n}</option>`).join('');
 }
 
 // ---------------------------------------------------------------------------
 // Certificate of Deposit (1200×630 canvas → PNG)
 // ---------------------------------------------------------------------------
 
-async function drawCertificate(id) {
-  const t = ROSTER.find((r) => r.id === id);
-  const name = $('#filedBy').value.trim() || 'A Registered Grudge-Holder';
+async function drawCertificate() {
+  const name = (wallet.name || '').trim() || 'A Registered Voter';
   await document.fonts.load('700 44px "Archivo Narrow"');
-  await document.fonts.load('700 20px "Courier Prime"');
+  await document.fonts.load('900 40px "Fraunces"');
+  const rows = allocationRows();
+  const total = rows.reduce((s, r) => s + r.usdv, 0);
 
   const cv = $('#certCanvas');
   const x = cv.getContext('2d');
   const W = cv.width, H = cv.height;
 
-  x.fillStyle = '#f7f4ea';
-  x.fillRect(0, 0, W, H);
-  for (let i = 0; i < 1600; i++) {
-    x.fillStyle = `rgba(23,22,26,${Math.random() * 0.035})`;
-    x.fillRect(Math.random() * W, Math.random() * H, 1.2, 1.2);
+  x.fillStyle = '#f2ead6'; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 1500; i++) { x.fillStyle = `rgba(23,22,26,${Math.random() * 0.03})`; x.fillRect(Math.random() * W, Math.random() * H, 1.2, 1.2); }
+
+  x.fillStyle = '#1c5f42'; x.fillRect(28, 28, W - 56, 74);
+  x.fillStyle = '#f2ead6'; x.textAlign = 'left';
+  x.font = '700 30px "Archivo Narrow", sans-serif';
+  x.fillText('CERTIFICATE OF DEPOSIT — ONE (1) $100 VOTE', 50, 74);
+  x.textAlign = 'right'; x.font = '14px "Courier Prime", monospace';
+  x.fillText('FORM CTV-26-M · BUREAU OF BALLOT GRIEVANCES', W - 50, 62);
+
+  x.strokeStyle = '#1c5f42'; x.lineWidth = 2; x.strokeRect(28, 28, W - 56, H - 56);
+  x.strokeStyle = '#17161a'; x.lineWidth = 1; x.strokeRect(40, 116, W - 80, H - 156);
+
+  x.textAlign = 'left'; x.fillStyle = '#55534f'; x.font = '19px "Archivo Narrow", sans-serif';
+  x.fillText('THIS CERTIFIES THAT', 62, 158);
+  x.fillStyle = '#17161a'; x.font = '900 46px "Fraunces", serif';
+  x.fillText(name.toUpperCase(), 62, 204);
+  x.fillStyle = '#55534f'; x.font = '19px "Archivo Narrow", sans-serif';
+  x.fillText('DEPLOYED ONE $100 VOTE AT THE OFFICIAL EXCHANGE RATE AGAINST CORPORATE MONEY:', 62, 246);
+
+  // allocation table (up to 6 lines)
+  const shown = rows.slice(0, 6);
+  let y = 292;
+  x.font = '700 24px "Archivo Narrow", sans-serif';
+  for (const r of shown) {
+    x.fillStyle = '#17161a'; x.textAlign = 'left';
+    x.fillText(r.t.name.toUpperCase(), 62, y);
+    x.fillStyle = '#1c5f42'; x.textAlign = 'right';
+    x.fillText(usd(r.usdv), W - 62, y);
+    x.strokeStyle = '#cbb98f'; x.lineWidth = 1; x.beginPath(); x.moveTo(62, y + 9); x.lineTo(W - 62, y + 9); x.stroke();
+    y += 40;
   }
+  if (rows.length > 6) { x.fillStyle = '#55534f'; x.textAlign = 'left'; x.font = '18px "Courier Prime", monospace'; x.fillText(`+ ${rows.length - 6} more line items`, 62, y); y += 30; }
 
-  // header bar
-  x.fillStyle = '#17161a';
-  x.fillRect(28, 28, W - 56, 78);
-  x.fillStyle = '#f7f4ea';
-  x.textAlign = 'left';
-  x.font = '700 34px "Archivo Narrow", sans-serif';
-  x.fillText('CERTIFICATE OF DEPOSIT — ONE (1) VOTE', 52, 78);
-  x.font = '15px "Courier Prime", monospace';
-  x.textAlign = 'right';
-  x.fillText('FORM CTV-26-M · UNOFFICIAL', W - 52, 60);
-  x.fillText('BUREAU OF BALLOT GRIEVANCES · CURRENCY DESK', W - 52, 82);
+  x.fillStyle = '#17161a'; x.textAlign = 'left'; x.font = '700 30px "Archivo Narrow", sans-serif';
+  x.fillText('TOTAL DEPLOYED', 62, y + 10);
+  x.fillStyle = '#1c5f42'; x.textAlign = 'right'; x.fillText(usd(total), W - 62, y + 10);
 
-  // frame + inner rule like a banknote
-  x.strokeStyle = '#17161a';
-  x.lineWidth = 1.5;
-  x.strokeRect(28, 28, W - 56, H - 56);
-  x.strokeRect(40, 118, W - 80, H - 158);
+  x.textAlign = 'center'; x.fillStyle = '#55534f'; x.font = '700 15px "Courier Prime", monospace';
+  x.fillText('NON-TRANSFERABLE · NON-PURCHASABLE · CLEARS ONLY WHEN YOU ACTUALLY VOTE · VOTE.GOV', W / 2, H - 52);
 
-  // face value corners
-  x.fillStyle = '#17161a';
-  x.font = '700 40px "Archivo Narrow", sans-serif';
-  x.textAlign = 'left';
-  x.fillText('$100', 58, 168);
-  x.textAlign = 'right';
-  x.fillText('$100', W - 58, 168);
-  x.fillText('$100', W - 58, H - 68);
-  x.textAlign = 'left';
-  x.fillText('$100', 58, H - 68);
-
-  x.textAlign = 'center';
-  x.fillStyle = '#55534f';
-  x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText('THIS CERTIFIES THAT', W / 2, 175);
-
-  x.fillStyle = '#17161a';
-  x.font = '700 50px "Archivo Narrow", sans-serif';
-  x.fillText(name.toUpperCase(), W / 2, 230);
-
-  x.fillStyle = '#55534f';
-  x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText('HOLDS ONE (1) VOTE · FACE VALUE $100 AT THE OFFICIAL EXCHANGE RATE', W / 2, 278);
-  x.fillText('PLEDGED AGAINST THE INFLUENCE ACCOUNT OF', W / 2, 320);
-
-  x.fillStyle = '#b5271d';
-  x.font = '700 54px "Archivo Narrow", sans-serif';
-  x.fillText(t.name.toUpperCase(), W / 2, 382);
-
-  x.fillStyle = '#55534f';
-  x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText(`${usd(t.totalUsd)} ON LEDGER, PER FEC FILINGS · EVERY $100 OF IT NEEDS A VOTER`, W / 2, 428);
-
-  x.font = '700 17px "Courier Prime", monospace';
-  x.fillStyle = '#17161a';
-  x.fillText('NON-TRANSFERABLE · NON-PURCHASABLE · REDEEMABLE ONLY AT YOUR POLLING PLACE', W / 2, 486);
-  x.font = '15px "Courier Prime", monospace';
-  x.fillStyle = '#55534f';
-  x.fillText(`STATUS: PENDING UNTIL BALLOT CAST — REGISTER AT VOTE.GOV · ISSUED ${new Date().toLocaleDateString('en-US')}`, W / 2, 516);
-
-  // stamp
-  x.save();
-  x.translate(W - 210, H - 130);
-  x.rotate(-0.14);
-  x.strokeStyle = 'rgba(181,39,29,0.85)';
-  x.lineWidth = 5;
-  x.strokeRect(-135, -40, 270, 76);
-  x.fillStyle = 'rgba(181,39,29,0.85)';
-  x.textAlign = 'center';
-  x.font = '700 42px "Courier Prime", monospace';
-  x.fillText('CANCELED', 0, 14);
-  x.restore();
+  x.save(); x.translate(W - 195, 200); x.rotate(-0.14);
+  x.strokeStyle = 'rgba(28,95,66,0.85)'; x.lineWidth = 5; x.strokeRect(-120, -34, 240, 66);
+  x.fillStyle = 'rgba(28,95,66,0.85)'; x.textAlign = 'center'; x.font = '700 34px "Courier Prime", monospace';
+  x.fillText('CAST', 0, 12); x.restore();
 
   return cv;
 }
 
-async function downloadCertificate(id) {
-  const cv = await drawCertificate(id);
+async function downloadCertificate() {
+  const cv = await drawCertificate();
   const a = document.createElement('a');
-  a.download = `canceled-${id}.png`;
-  a.href = cv.toDataURL('image/png');
-  a.click();
+  a.download = 'my-100-dollar-vote.png';
+  a.href = cv.toDataURL('image/png'); a.click();
 }
 
-async function shareCancel(id, btn) {
-  const t = ROSTER.find((r) => r.id === id);
-  const text = `I just pledged my vote against ${t.name} — ${usd(t.totalUsd)} of influence on the ledger, and my ballot is worth $100 of it that money can't buy. ${usd(t.count * RATE)} neutralized so far.`;
+async function shareCast(btn) {
+  const rows = allocationRows();
+  const top = rows[0];
+  const text = top
+    ? `I just deployed my $100 vote against corporate money in politics — ${usd(top.usdv)} on ${top.t.name}${rows.length > 1 ? ` and ${rows.length - 1} more` : ''}. Your vote's worth $100 too. Spend it, then vote.`
+    : `Your vote is worth $100 of the corporate money in politics. Spend it, then vote.`;
   try {
-    const cv = await drawCertificate(id);
+    const cv = await drawCertificate();
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
-    const file = new File([blob], 'certificate.png', { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ text, files: [file] });
-      return;
-    }
+    const file = new File([blob], 'my-100-dollar-vote.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ text, files: [file] }); return; }
     if (navigator.share) { await navigator.share({ text, url: location.origin }); return; }
-  } catch (_) { /* fall through to clipboard */ }
+  } catch (_) { /* fall through */ }
   try {
     await navigator.clipboard.writeText(text + ' ' + location.origin);
-    const old = btn.textContent;
-    btn.textContent = 'Copied!';
+    const old = btn.textContent; btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = old; }, 1600);
   } catch (_) { /* no-op */ }
 }
 
 boot().catch((err) => {
   console.error(err);
-  $('#celebGrid').innerHTML = '<p class="empty-note">The currency desk is experiencing technical difficulties. The money, regrettably, is fine.</p>';
+  $('#ledgerGrid').innerHTML = '<p class="empty-note">The currency desk is having technical difficulties. The money, regrettably, is fine.</p>';
 });

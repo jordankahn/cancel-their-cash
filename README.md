@@ -1,10 +1,13 @@
-# Cancel Their Vote — Official Influence Cancellation Ledger
+# Cancel Their Vote — "Your vote is only worth $100"
 
-Satirical GOTV site: corporate PACs put real money into federal elections; you pledge
-your vote against a line item at the Bureau's Official Exchange Rate (1 vote = $100,
-derived from $15.9B of 2024 federal election spending ÷ ~155M ballots, per OpenSecrets).
-Votes don't literally cancel dollars — that's the joke, and the fine print says so loudly.
-Inspired by the [Integrity Index](https://integrityindex.us) (unaffiliated; collab wanted).
+Satirical GOTV site: corporate PACs put real money into federal elections. At the Bureau's
+Official Exchange Rate (1 vote = $100, derived from $15.9B of 2024 federal spending ÷ ~155M
+ballots, per OpenSecrets), you hold one scarce **$100 vote — ten $10 chips**. You allocate
+them across the corporate PACs whose influence you most want to zero out, then **cast** once.
+Scarcity is the point: no infinite spam-clicking, one deliberate choice. Chips live in the
+browser (localStorage) until cast — no accounts. Votes don't literally cancel dollars; that's
+the joke, and the fine print says so. Inspired by the
+[Integrity Index](https://integrityindex.us) (unaffiliated; collab wanted).
 
 ## Run
 
@@ -19,9 +22,11 @@ write-through persistence to `data/state.json` (delete it to reset).
 
 ## What it stores
 
-Per pledge: a counter increment and an optional first name (≤20 chars, sanitized),
-shown in the public wire. Nothing else — no emails, no accounts, no cookies,
-no analytics.
+Server-side, per cast: dollars added to each targeted PAC's running total, plus one
+wire event per funded target carrying the dollar amount and an optional first name
+(≤20 chars, sanitized). Nothing else — no emails, no accounts, no cookies, no analytics.
+The user's in-progress chip allocation and their cast-lock live only in their own
+browser (localStorage key `ctv-wallet-v1`).
 
 ## Data
 
@@ -36,14 +41,15 @@ frontend changes.
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/roster` | All targets + pledge counts |
-| `GET /api/stats` | Total pledges, most-neutralized, outstanding ledger total |
-| `GET /api/leaderboard?limit=10` | Most neutralized, all-time |
-| `GET /api/trending?limit=10` | Most neutralized, last 24h |
-| `GET /api/feed?limit=25` | Recent pledge events (wire) |
-| `POST /api/cancel` | `{id, name?, times?}` → increments (rate-limited 30/min/IP) |
+| `GET /api/roster` | All targets + dollars pledged, plus `budgetUsd`/`chipUsd` |
+| `GET /api/stats` | Total $ neutralized, votes cast, most-neutralized, outstanding total |
+| `GET /api/leaderboard?limit=10` | Most $ neutralized, all-time |
+| `GET /api/trending?limit=10` | Most $ neutralized, last 24h |
+| `GET /api/feed?limit=25` | Recent pledge events (wire), with $ amounts |
+| `POST /api/cast` | `{allocations:{id:usd,…}, name?}` → adds a whole $100 vote at once; rejects >$100 or empty; snaps to $10; rate-limited 20/min/IP |
 
-Counts are votes; the client converts to dollars (×$100).
+Server stores dollars directly (all $10 multiples). One `/api/cast` per voter carries
+their full allocation, so the server never sees mid-allocation fiddling.
 
 ## Content rules (the legal guardrails — keep them)
 

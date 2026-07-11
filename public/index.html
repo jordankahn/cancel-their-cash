@@ -3,105 +3,74 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cancel Their Vote — Official Influence Cancellation Ledger</title>
-<meta name="description" content="Corporate PACs spend millions on elections. Your vote is worth $100 of it, and it can't be bought. Pledge it against the money — then actually go vote.">
-<meta property="og:title" content="Cancel Their Vote">
-<meta property="og:description" content="One vote = $100 of political money, per the Bureau's Official Exchange Rate. Spend yours against a corporate PAC.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f7f4ea'/%3E%3Cellipse cx='50' cy='50' rx='34' ry='20' fill='none' stroke='%2317161a' stroke-width='8'/%3E%3Cellipse cx='50' cy='50' rx='20' ry='10' fill='%23b5271d'/%3E%3C/svg%3E">
+<title>Cancel Their Vote — Your vote is worth $100</title>
+<meta name="description" content="Corporate PACs spend millions on elections. Your vote is worth $100 of it, and it can't be bought. Place your ten $10 chips against the money — then actually go vote.">
+<meta property="og:title" content="Cancel Their Vote — Your vote is worth $100">
+<meta property="og:description" content="One $100 vote, ten $10 chips. Spend it against the corporate money in politics.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f2ead6'/%3E%3Ccircle cx='50' cy='50' r='34' fill='none' stroke='%231d6b47' stroke-width='7'/%3E%3Ctext x='50' y='63' font-size='34' font-family='Georgia' text-anchor='middle' fill='%231d6b47'%3E%24%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Fraunces:opsz,wght@9..144,600;9..144,900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
-<main class="page">
+<main class="page" id="top">
 
   <header class="bhead">
     <div class="bhead-title">
-      <h1>Official Influence Cancellation Ledger</h1>
-      <p class="bhead-sub">General Midterm Election · Tuesday, November 3, 2026</p>
+      <span class="bhead-seal" aria-hidden="true">✶</span>
+      <div>
+        <h1>Cancel Their Vote</h1>
+        <p class="bhead-sub">Bureau of Ballot Grievances · Currency Desk · Est. 2026</p>
+      </div>
     </div>
     <div class="bhead-meta">
       <span>Form CTV-26-M</span>
-      <span>Bureau of Ballot Grievances · Currency Desk</span>
-      <span>Unofficial · Non-binding · Mathematically petty</span>
+      <span>Midterms · Nov 3, 2026</span>
+      <span>Unofficial &amp; mathematically petty</span>
     </div>
   </header>
 
-  <div class="wire" aria-label="Recent cancellations">
-    <span class="wire-label">CANCELLATION WIRE</span>
+  <div class="wire" aria-label="Recent pledges">
+    <span class="wire-label">THE WIRE</span>
     <div class="wire-clip"><div class="wire-track" id="tickerTrack"></div></div>
   </div>
 
   <nav class="index-bar" id="indexBar" aria-label="Section index">
     <div class="index-links">
-      <a href="#ballot">The Ledger</a>
+      <a href="#top">Home</a>
+      <a href="#ledger">The Money</a>
       <a href="#returns">Returns</a>
-      <a href="#methodology">Methodology</a>
-      <a href="#fine-print">Fine print</a>
+      <a href="#methodology">Why $100</a>
     </div>
     <span class="index-total"><strong id="indexTotal">$0</strong>&nbsp;neutralized</span>
   </nav>
 
-  <div class="specimen" aria-hidden="true">Specimen · Not legal tender</div>
+  <!-- ============================ HERO ============================ -->
+  <section class="hero" aria-labelledby="heroTitle">
+    <p class="hero-kicker">The official exchange rate</p>
+    <h2 class="hero-title" id="heroTitle">Your vote is only<br> worth <span class="hero-dollar">$100</span>.</h2>
+    <p class="hero-sub">At least, that's all the corporate money in politics acts like it is.</p>
+    <p class="hero-lead">So spend it first. You hold one <strong>$100 vote</strong> — ten $10 chips.
+    Place them on the corporate PACs whose influence you most want to zero out. Then make it
+    real at the ballot box, the one place their money can't follow.</p>
 
-  <section class="intake">
-    <div class="instructions">
-      <h2>Instructions to Cancelers</h2>
-      <ol>
-        <li>Corporate PACs put real money into federal elections. The figures on this
-        ledger are public record. Money, however, cannot enter a voting booth. You can.
-        That asymmetry is the entire mechanism.</li>
-        <li>At the Bureau's official exchange rate, one (1) vote is worth
-        <strong>$100</strong> of political money. To pledge yours against a line item,
-        completely fill in the oval <span class="oval-demo" aria-hidden="true"></span>
-        beside it. Use ink. Arithmetic is an acceptable ink.</li>
-        <li>Each additional stamp deposits another canceler's worth of intent, $100 at
-        a time. When a PAC's balance hits zero it is declared
-        <em>OVERDRAWN</em>, a condition with no legal meaning and enormous moral clarity.</li>
-        <li>Your deposit remains <strong>PENDING</strong> until you cast an actual
-        ballot. A pledge without a ballot is a bounced check.</li>
-      </ol>
+    <div class="hero-wallet" aria-label="Your chips">
+      <div class="hw-chips" id="heroChips"></div>
+      <p class="hw-status"><strong id="heroRemaining">$100</strong> left to place</p>
     </div>
 
-    <div class="intake-form">
-      <div class="fill-line">
-        <label for="filedBy">Deposited by <span class="opt">(first name, optional)</span></label>
-        <input id="filedBy" type="text" maxlength="20" placeholder="Anonymous Voter" autocomplete="off">
-      </div>
-      <dl class="tallies">
-        <div class="tally"><dt>Influence neutralized</dt><dd id="statTotal">$0</dd></div>
-        <div class="tally"><dt>Most-neutralized PAC</dt><dd id="statTop" class="tally-name">—</dd></div>
-        <div class="tally"><dt>Outstanding on ledger</dt><dd id="statOutstanding">$0</dd></div>
-        <div class="tally"><dt>Elections literally purchased</dt><dd>0<span class="tally-foot">keep it that way</span></dd></div>
-      </dl>
+    <div class="hero-cta">
+      <a class="btn btn-go" href="#ledger">Place your chips ↓</a>
+      <a class="btn btn-ghost" href="#methodology">Why is it $100?</a>
     </div>
+
+    <p class="hero-live" id="heroLive">Loading the ledger…</p>
   </section>
 
-  <section class="exhibit" aria-label="Official exchange rate">
-    <div class="exhibit-stamp" aria-hidden="true">Official Rate</div>
-    <h2>Exhibit A — The Official Exchange Rate</h2>
-    <p class="exhibit-math">
-      <span class="em-line">$15,900,000,000 <span class="em-note">spent on the 2024 federal elections¹</span></span>
-      <span class="em-line">÷ 155,238,302 <span class="em-note">ballots cast</span></span>
-      <span class="em-line em-result">= $102.43 per vote</span>
-    </p>
-    <p class="exhibit-rate">The Bureau certifies the rate at <strong>1 VOTE = $100</strong>.
-    <span class="exhibit-foot">The Bureau does not make change.</span></p>
-    <p class="exhibit-cite">¹ OpenSecrets, total 2023–24 federal cycle cost. See <a href="#methodology">methodology</a> for the midterm discount rate and other regional rates.</p>
-  </section>
-
-  <section class="snapshot" aria-label="Returns snapshot">
-    <div class="snap-head">
-      <h2>Unofficial Returns — Snapshot</h2>
-      <a href="#returns">Full tables →</a>
-    </div>
-    <ol class="snap-list" id="snapList"></ol>
-    <p class="snap-trend" id="snapTrend" hidden></p>
-  </section>
-
-  <div class="part-bar" id="ballot" aria-live="polite">Part 1 — Schedule of outstanding influence</div>
+  <!-- ========================== THE LEDGER ========================== -->
+  <div class="part-bar" id="ledger" aria-live="polite">The Money — corporate PACs, ranked by influence</div>
   <div class="filter-row">
     <div class="f-field">
       <label for="tagPick">Industry</label>
@@ -109,79 +78,111 @@
     </div>
     <div class="f-field f-search">
       <label for="docketSearch">Search</label>
-      <input id="docketSearch" type="search" placeholder="SEARCH THE LEDGER…" autocomplete="off" aria-label="Search PAC names">
+      <input id="docketSearch" type="search" placeholder="SEARCH THE MONEY…" autocomplete="off" aria-label="Search PAC names">
     </div>
-    <p class="f-note">Corporate PAC totals, 2024 cycle, per FEC filings. Rounded to the nearest $100,000.</p>
+    <p class="f-note">2024-cycle federal totals, per FEC filings. Rounded to the nearest $100,000.</p>
   </div>
   <div class="rollup" id="rollup" hidden></div>
 
-  <section class="ballot-grid" id="celebGrid"></section>
-  <nav class="pager" id="pager" aria-label="Ledger sheets"></nav>
+  <section class="ledger-grid" id="ledgerGrid"></section>
+  <nav class="pager" id="pager" aria-label="Ledger pages"></nav>
   <p class="vh" id="pagerAnnounce" aria-live="polite"></p>
 
-  <div class="part-bar" id="returns">Part 2 — Unofficial returns <span class="part-bar-right">All figures at the official rate · 0% of anything legally affected</span></div>
-
+  <!-- ========================== RETURNS ========================== -->
+  <div class="part-bar" id="returns">Returns — where the money's being canceled <span class="part-bar-right">Live · at the official $100 rate</span></div>
   <section class="returns">
     <div class="table-tabs" role="tablist">
-      <button class="ttab is-active" id="tabLeader" role="tab" aria-selected="true">Table A · Most neutralized, all-time</button>
-      <button class="ttab" id="tabTrend" role="tab" aria-selected="false">Table B · Trending, last 24 hours</button>
+      <button class="ttab is-active" id="tabLeader" role="tab" aria-selected="true">Most neutralized</button>
+      <button class="ttab" id="tabTrend" role="tab" aria-selected="false">Trending · 24h</button>
     </div>
     <ol class="rtable" id="boardList"></ol>
   </section>
 
-  <div class="part-bar" id="methodology">Part 3 — Notes on methodology</div>
-
+  <!-- ========================= METHODOLOGY ========================= -->
+  <div class="part-bar" id="methodology">Why a vote is worth $100</div>
+  <section class="exhibit" aria-label="The exchange rate math">
+    <div class="exhibit-math">
+      <span class="em-line">$15,900,000,000 <span class="em-note">spent on the 2024 federal elections¹</span></span>
+      <span class="em-line">÷ 155,238,302 <span class="em-note">ballots cast</span></span>
+      <span class="em-line em-result">= $102.43 per vote</span>
+    </div>
+    <p class="exhibit-rate">Certified at <strong>1 vote = $100</strong>. <span class="exhibit-foot">The Bureau does not make change.</span></p>
+  </section>
   <section class="notes">
     <div class="note">
-      <h3>¹ On the exchange rate</h3>
-      <p>OpenSecrets puts the 2024 federal cycle at $15.9 billion; about 155 million
-      ballots were cast. That's $102.43 of political money per vote, certified down to
-      an even $100. Regional rates exist: the 2022 midterm discount (~$79) and the
-      Georgia-runoff premium (~$111). The Bureau quotes the round number because the
-      Bureau does not make change.</p>
+      <h3>The rate</h3>
+      <p>OpenSecrets puts the 2024 federal cycle at $15.9 billion against ~155 million ballots —
+      $102.43 of political money per vote, rounded to $100. Regional rates exist: the 2022 midterm
+      discount (~$79), the Georgia-runoff premium (~$111).</p>
     </div>
     <div class="note">
-      <h3>² On the allegation</h3>
-      <p>We do not allege corruption. We allege <em>arithmetic</em>. Every figure on
-      the ledger is a public FEC record of lawful contributions, rounded to the
-      nearest $100,000. The companies did the disclosing; we did the dividing.</p>
+      <h3>The allegation</h3>
+      <p>We don't allege corruption. We allege <em>arithmetic</em>. Every figure is a public FEC
+      record of lawful contributions, rounded to the nearest $100,000. They disclosed; we divided.</p>
     </div>
     <div class="note">
-      <h3>³ On method</h3>
-      <p>This site will never tell you whom to vote for or against — that's your
-      homework, and better researchers than us grade it. Start with the
-      <a href="https://integrityindex.us" target="_blank" rel="noopener">Integrity Index</a>
-      (who takes corporate PAC money and trades stocks in office) and
-      <a href="https://www.opensecrets.org" target="_blank" rel="noopener">OpenSecrets</a>
-      (who funds whom). Neither is affiliated with this site. Yet.</p>
+      <h3>Do your homework</h3>
+      <p>This site never tells you whom to vote for. Who takes corporate money is your call — start
+      with the <a href="https://integrityindex.us" target="_blank" rel="noopener">Integrity Index</a>
+      and <a href="https://www.opensecrets.org" target="_blank" rel="noopener">OpenSecrets</a>.
+      Neither is affiliated with this site. Yet.</p>
     </div>
     <div class="note">
-      <h3>⁴ On follow-through</h3>
-      <p>A pledge here is a birthday wish until you vote. Registration takes two
-      minutes at <a href="https://vote.gov" target="_blank" rel="noopener">vote.gov</a>.
-      Make a plan — when, where, how you're getting there. Voters with a plan actually
-      go. That's the part of this that isn't a joke.</p>
+      <h3>The catch</h3>
+      <p>A pledge here is a wish until you vote. Register in two minutes at
+      <a href="https://vote.gov" target="_blank" rel="noopener">vote.gov</a> and make a plan.
+      Voters with a plan actually show up. That part isn't a joke.</p>
     </div>
   </section>
 
   <footer class="fine-print" id="fine-print">
-    <p><strong>The fine print.</strong> This is satire with a turnout problem to solve. Company and
-    PAC names appear solely for commentary on public campaign-finance records; no company endorses,
-    sponsors, or has anything to do with this site, and no logos or trademarks are used. Figures are
-    lawful, disclosed contributions per FEC filings, rounded, as of the date in our data file — we
-    allege arithmetic, not crimes. Votes don't literally cancel dollars; they do something better:
-    they count. No prizes, no rewards, no merch. We store a counter and, if you offer one, a first
-    name. Nothing else.</p>
+    <p><strong>The fine print.</strong> Satire with a turnout problem to solve. Company and PAC names
+    appear solely for commentary on public campaign-finance records; no company endorses or sponsors
+    this site, and no logos or trademarks are used. Figures are lawful, disclosed FEC contributions,
+    rounded, as of the date in our data file — we allege arithmetic, not crimes. Votes don't literally
+    cancel dollars; they do something better: they count. No prizes, no rewards, no merch. We store a
+    counter and, if you offer one, a first name. Your chips live in your own browser. Nothing else.</p>
     <p>
       <a href="/terms.html">Full terms &amp; disclaimers</a> ·
-      <a href="https://vote.gov" target="_blank" rel="noopener">Register to vote — vote.gov</a> ·
-      <a href="https://www.eac.gov/voters" target="_blank" rel="noopener">Election information — EAC</a>
+      <a href="https://vote.gov" target="_blank" rel="noopener">Register — vote.gov</a> ·
+      <a href="https://www.eac.gov/voters" target="_blank" rel="noopener">Election info — EAC</a>
     </p>
   </footer>
 
-  <div class="bfoot">End of ledger — your $100 is waiting · vote.gov</div>
+  <div class="bfoot">Your $100 only clears when you vote · vote.gov</div>
 
 </main>
+
+<!-- ===================== STICKY WALLET BAR ===================== -->
+<div class="wallet-bar" id="walletBar" hidden>
+  <div class="wb-chips" id="walletChips" aria-hidden="true"></div>
+  <p class="wb-msg" id="walletMsg">$100 to place</p>
+  <input class="wb-name" id="walletName" type="text" maxlength="20" placeholder="Your first name (optional)" autocomplete="off" aria-label="Your first name, optional">
+  <button class="btn btn-cast" id="castBtn" type="button" disabled>Cast my vote</button>
+</div>
+
+<!-- ===================== CAST RECEIPT MODAL ===================== -->
+<div class="veil" id="castVeil" hidden>
+  <div class="cast-panel" role="dialog" aria-modal="true" aria-labelledby="castHeading">
+    <div class="cast-stamp" aria-hidden="true">Cast</div>
+    <p class="cast-kicker">Certificate of Deposit · Form CTV-26-M</p>
+    <h2 id="castHeading">Your $100 vote is placed.</h2>
+    <ol class="cast-receipt" id="castReceipt"></ol>
+    <p class="cast-pending"><strong>Status: pending.</strong> Dollars are symbolic; your ballot is
+    not. This clears the moment you actually vote.</p>
+    <div class="cast-where">
+      <label for="spendState">Where will you vote?</label>
+      <select id="spendState" aria-label="Pick your state"></select>
+    </div>
+    <div class="cast-actions">
+      <a class="btn btn-go" id="registerLink" href="https://vote.gov" target="_blank" rel="noopener">Register / make a plan →</a>
+      <button class="btn btn-ghost" id="certBtn" type="button">Download certificate</button>
+      <button class="btn btn-ghost" id="shareBtn" type="button">Share</button>
+    </div>
+    <button class="cast-close" id="castClose" type="button">Close · keep browsing the ledger</button>
+    <button class="cast-reset" id="castReset" type="button">Start over (clears your chips)</button>
+  </div>
+</div>
 
 <canvas id="certCanvas" width="1200" height="630" hidden></canvas>
 <script src="/app.js"></script>

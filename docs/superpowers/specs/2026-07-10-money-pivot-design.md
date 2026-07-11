@@ -93,3 +93,34 @@ snapshot, filters, pagination, wire, stamp mechanics; rate limiting; privacy pos
 4. State picker in post-stamp strip builds correct vote.gov link.
 5. Mobile 375px: no horizontal scroll; progress lines wrap cleanly.
 6. No console errors; `node --check` passes.
+
+---
+
+## Revision 2 (2026-07-11) — chip allocation + hero redesign
+
+User feedback: too much text up front, flat color, and infinite stamping made
+pledges feel meaningless. Changes, all on branch `money-pivot`:
+
+- **Scarcity mechanic.** Replaced unlimited per-row stamps with one scarce
+  **$100 vote = ten $10 chips**. The voter allocates chips across targets
+  (browser-local, freely re-balanceable), then **casts once** — a single
+  `POST /api/cast {allocations:{id:usd}}`. No accounts; wallet + cast-lock live
+  in localStorage (`ctv-wallet-v1`). Anti-spam by design.
+- **Hero-first page.** New big Fraunces-serif hero ("Your vote is only worth
+  $100.") with one-line hook, brief intro, a live chip wallet preview, and a
+  single primary CTA. Instructions trimmed; exchange-rate math + notes moved
+  below the ledger.
+- **Visual depth.** Added a money-green accent (chips, cast, links, "your pick"
+  row tint), a display serif (Fraunces), a guilloché engraving texture in the
+  hero, warmer paper, and a larger type scale — addressing the "flat" note.
+- **Ledger rows** now carry an inline chip stepper (− $X +), a two-tone
+  neutralization meter, an `is-yours` green highlight, and the OVERDRAWN flip.
+- **Casting ceremony.** A modal Certificate-of-Deposit receipt itemizes the
+  allocation, shows PENDING status, a state picker → vote.gov link, and
+  certificate/share. The canvas certificate lists the allocation breakdown.
+- **Server** stores dollars directly (all $10 multiples); `/api/cancel` removed
+  in favor of `/api/cast`; demo seed reworked to dollars with two OVERDRAWN
+  showcases that don't top the board.
+
+Superseded from Rev 1: per-row stamp counter, `/api/cancel`, the standalone
+returns-snapshot strip, the exchange-rate "Exhibit A" box position.
