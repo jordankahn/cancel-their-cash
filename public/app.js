@@ -300,16 +300,15 @@ function renderGrid() {
     const inkPct = pctOf(pledgedUsd(t), t);
     const youPct = pctOf(yourPendingUsd(t), t);
     return `
-    <article class="lrow${over ? ' is-overdrawn' : ''}${yours ? ' is-yours' : ''}" data-id="${t.id}">
+    <article class="lrow${over ? ' is-overdrawn' : ''}${yours ? ' is-yours' : ''}" data-id="${t.id}" title="${escapeHtml(t.blurb)}">
       <div class="lrow-head">
         <span class="lrow-seal" style="color:${industryColor(t.industry)}">${industrySeal(t.industry)}</span>
         <div class="lrow-headmain">
           <h3 class="lrow-name">${escapeHtml(t.name)}</h3>
           <p class="lrow-meta" style="color:${industryColor(t.industry)}">${escapeHtml(tagLabel(t.industry))}</p>
         </div>
-        <span class="lrow-total">${usd(t.totalUsd)}<span class="lrow-total-lbl"> on the books</span></span>
+        <span class="lrow-total">${usd(t.totalUsd)}<span class="lrow-total-lbl">on the books</span></span>
       </div>
-      <p class="lrow-blurb">${escapeHtml(t.blurb)}</p>
       <div class="meter" role="img" aria-label="${(inkPct + youPct).toFixed(0)}% neutralized">
         <span class="meter-ink" style="width:${inkPct.toFixed(2)}%"></span>
         <span class="meter-you" style="left:${inkPct.toFixed(2)}%;width:${Math.min(100 - inkPct, youPct).toFixed(2)}%"></span>

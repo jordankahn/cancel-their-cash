@@ -212,7 +212,7 @@ button { cursor: pointer; font-family: inherit; color: inherit; }
 .lrow {
   position: relative; overflow: hidden;
   border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
-  padding: 16px 20px 15px; display: flex; flex-direction: column;
+  padding: 15px 20px 14px; display: flex; flex-direction: column;
 }
 .lrow.is-yours { box-shadow: inset 4px 0 0 var(--green); background: var(--green-soft); }
 .lrow.is-overdrawn { background: var(--red-soft); }
@@ -226,9 +226,8 @@ button { cursor: pointer; font-family: inherit; color: inherit; }
 .lrow-total { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
 .lrow-total-lbl { display: block; color: var(--ink-60); font-weight: 400; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .lrow-meta { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; margin: 3px 0 0; }
-.lrow-blurb { font-size: 0.9rem; color: var(--ink-70); flex: 1; margin-top: 9px; }
 
-.meter { position: relative; height: 9px; background: var(--paper-3); border: 1px solid var(--line); margin: 13px 0 10px; overflow: hidden; }
+.meter { position: relative; height: 9px; background: var(--paper-3); border: 1px solid var(--line); margin: 14px 0 10px; overflow: hidden; }
 .meter-ink { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
 .meter-you { position: absolute; top: 0; bottom: 0; background: var(--green); transition: width 0.3s ease, left 0.3s ease; }
 .lrow.is-overdrawn .meter-ink { background: var(--red); }
