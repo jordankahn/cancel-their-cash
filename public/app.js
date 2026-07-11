@@ -1,4 +1,4 @@
-/* Cancel Their Vote — frontend, chip-allocation edition. No frameworks, no
+/* Cancel Out Their Vote — frontend, chip-allocation edition. No frameworks, no
    tracking. You hold one $100 vote = ten $10 chips; you allocate them across
    corporate PACs in your own browser, then cast once. */
 'use strict';
