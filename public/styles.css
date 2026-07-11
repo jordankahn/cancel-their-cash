@@ -218,12 +218,15 @@ button { cursor: pointer; font-family: inherit; color: inherit; }
 .lrow.is-overdrawn { background: var(--red-soft); }
 .lrow.is-overdrawn.is-yours { box-shadow: inset 4px 0 0 var(--green); }
 
-.lrow-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.lrow-name { font-family: var(--font-display); font-weight: 600; font-size: 1.28rem; line-height: 1.05; letter-spacing: -0.01em; }
-.lrow-total { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.lrow-total-lbl { color: var(--ink-60); font-weight: 400; font-size: 0.72rem; }
-.lrow-meta { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--green); margin: 3px 0 7px; }
-.lrow-blurb { font-size: 0.9rem; color: var(--ink-70); flex: 1; }
+.lrow-head { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 13px; }
+.lrow-seal { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid currentColor; display: grid; place-items: center; flex-shrink: 0; background: var(--paper); }
+.lrow-seal svg { width: 25px; height: 25px; }
+.lrow-headmain { min-width: 0; }
+.lrow-name { font-family: var(--font-display); font-weight: 600; font-size: 1.26rem; line-height: 1.05; letter-spacing: -0.01em; }
+.lrow-total { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.lrow-total-lbl { display: block; color: var(--ink-60); font-weight: 400; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.lrow-meta { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; margin: 3px 0 0; }
+.lrow-blurb { font-size: 0.9rem; color: var(--ink-70); flex: 1; margin-top: 9px; }
 
 .meter { position: relative; height: 9px; background: var(--paper-3); border: 1px solid var(--line); margin: 13px 0 10px; overflow: hidden; }
 .meter-ink { position: absolute; inset: 0 auto 0 0; background: var(--ink); }

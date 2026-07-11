@@ -220,6 +220,32 @@ function initIndexSpy() {
 
 const tagLabel = (t) => t.charAt(0) + t.slice(1).toLowerCase();
 const pledgedUsd = (t) => t.pledged || 0;
+
+// Industry seals — original engraved line-art (no trademarks), tinted with a
+// muted "stamp ink" color per sector so the ledger has visual rhythm. Red is
+// deliberately absent (reserved for OVERDRAWN).
+const INDUSTRY_COLORS = {
+  'DEFENSE': '#2b5f6b', 'PHARMA': '#2f7d4f', 'OIL & GAS': '#7a5326',
+  'WALL STREET': '#1c5f42', 'TELECOM & MEDIA': '#37477e', 'BIG TECH': '#1f7a72',
+  'INSURANCE': '#3f5a7a', 'AGRIBUSINESS & FOOD': '#5f6b2b', 'TRANSPORT': '#3a5a6b',
+  'VICE': '#7a3a5a', 'CRYPTO': '#8a6a1f',
+};
+const INDUSTRY_ICONS = {
+  'DEFENSE': '<path d="M12 3l7 2.5v5.5c0 4-3 6.8-7 8-4-1.2-7-4-7-8V5.5L12 3z"/><path d="M12 8v4M10 10h4"/>',
+  'PHARMA': '<rect x="4" y="8.5" width="16" height="7" rx="3.5"/><path d="M12 8.5v7"/>',
+  'OIL & GAS': '<path d="M12 3.5c3 4.2 4.8 6.4 4.8 8.8a4.8 4.8 0 01-9.6 0c0-2.4 1.8-4.6 4.8-8.8z"/>',
+  'WALL STREET': '<path d="M3.5 9L12 4.5 20.5 9"/><path d="M5.5 9.5v8M9.5 9.5v8M14.5 9.5v8M18.5 9.5v8"/><path d="M4 20h16"/>',
+  'TELECOM & MEDIA': '<path d="M12 9v9"/><path d="M9 20h6l-3-11z"/><path d="M7.5 6.5a5 5 0 000 5M16.5 6.5a5 5 0 010 5"/>',
+  'BIG TECH': '<rect x="8" y="8" width="8" height="8" rx="1"/><path d="M11 8V5M13 8V5M11 19v-3M13 19v-3M8 11H5M8 13H5M19 11h-3M19 13h-3"/>',
+  'INSURANCE': '<path d="M4 11a8 8 0 0116 0z"/><path d="M12 11v6a2 2 0 01-4 0"/>',
+  'AGRIBUSINESS & FOOD': '<path d="M12 20V8"/><path d="M12 12c-2.4 0-4-1.6-4-4 2.4 0 4 1.6 4 4zM12 12c2.4 0 4-1.6 4-4-2.4 0-4 1.6-4 4z"/><path d="M12 8c-2 0-3.3-1.3-3.3-3.3C11 4.7 12 6 12 8zM12 8c2 0 3.3-1.3 3.3-3.3C13 4.7 12 6 12 8z"/>',
+  'TRANSPORT': '<rect x="2.5" y="7.5" width="11" height="7.5"/><path d="M13.5 10h3.5l3 3v2h-6.5z"/><circle cx="6" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/>',
+  'VICE': '<path d="M10 3.5h4v2.5l1 2.5V19a1.5 1.5 0 01-1.5 1.5h-3A1.5 1.5 0 019 19V8.5l1-2.5z"/><path d="M9 12h6"/>',
+  'CRYPTO': '<circle cx="12" cy="12" r="8"/><path d="M12 7.5l3.2 4.5-3.2 4.5-3.2-4.5z"/>',
+};
+const industryColor = (ind) => INDUSTRY_COLORS[ind] || '#43402f';
+const industrySeal = (ind) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${INDUSTRY_ICONS[ind] || ''}</svg>`;
 const yourPendingUsd = (t) => (wallet.cast ? 0 : chipsOn(t.id) * CHIP_USD);
 const totalNeutralized = (t) => pledgedUsd(t) + yourPendingUsd(t);
 const balanceUsd = (t) => t.totalUsd - totalNeutralized(t);
@@ -276,10 +302,13 @@ function renderGrid() {
     return `
     <article class="lrow${over ? ' is-overdrawn' : ''}${yours ? ' is-yours' : ''}" data-id="${t.id}">
       <div class="lrow-head">
-        <h3 class="lrow-name">${escapeHtml(t.name)}</h3>
+        <span class="lrow-seal" style="color:${industryColor(t.industry)}">${industrySeal(t.industry)}</span>
+        <div class="lrow-headmain">
+          <h3 class="lrow-name">${escapeHtml(t.name)}</h3>
+          <p class="lrow-meta" style="color:${industryColor(t.industry)}">${escapeHtml(tagLabel(t.industry))}</p>
+        </div>
         <span class="lrow-total">${usd(t.totalUsd)}<span class="lrow-total-lbl"> on the books</span></span>
       </div>
-      <p class="lrow-meta">${escapeHtml(tagLabel(t.industry))}</p>
       <p class="lrow-blurb">${escapeHtml(t.blurb)}</p>
       <div class="meter" role="img" aria-label="${(inkPct + youPct).toFixed(0)}% neutralized">
         <span class="meter-ink" style="width:${inkPct.toFixed(2)}%"></span>
