@@ -124,3 +124,32 @@ pledges feel meaningless. Changes, all on branch `money-pivot`:
 
 Superseded from Rev 1: per-row stamp counter, `/api/cancel`, the standalone
 returns-snapshot strip, the exchange-rate "Exhibit A" box position.
+
+---
+
+## Revision 3 (2026-07-11) — rename, legal copy, visual polish
+
+- **Renamed the product to "Cancel Their Cash."** "Cancel (Out) Their Vote" no
+  longer fit once targets became corporations (they don't vote — their money
+  does). Form-number initials CTV → CTC (Form CTC-26 / CTC-26-Legal; the
+  certificate reads FORM CTC-26). The GitHub repo and working-dir names are a
+  separate action and may still read `cancel-out-their-vote` / `cancel-their-vote`.
+  The masthead references in Rev 1/2 above ("Official Influence Cancellation
+  Ledger", "Form CTV-26-M") are superseded by this.
+- **No-real-money copy discipline.** The metaphor now reads as canceling THEIR
+  money, never spending yours: the user "uses / aims / cancels," corporations
+  "spend" (factual). Purged from visible copy: spend (user-side), buy, pay,
+  deposit, face value, non-purchasable, "make change", "clears", "Currency Desk",
+  "Certificate of Deposit". An explicit "no real money changes hands, nobody is
+  paid, the $100 is a figure of speech" now appears on-surface (hero note), in
+  the cast modal, **baked into the shareable certificate image**, in the fine
+  print, and in terms §1a — not only the disclaimer.
+- **Engagement + clarity pass.** Chip placement now pops the seal, floats a
+  "+$10", buzzes, and flashes the wallet bar on the last chip; the voter's
+  contribution gets a guaranteed-visible 6px green nub on the meter; the effect
+  verb is unified to "canceled" ("place" = the act of placing your own chips).
+- **Visual:** per-industry engraved **seals** (11 original line-art icons in
+  muted stamp-ink colors — no corporate logos, for trademark safety); ledger
+  cards decluttered to 3 rows (blurb moved to hover `title`); methodology +
+  fine-print footer cleaned up; leftover copy trimmed (dead part-bar text,
+  duplicated exchange-rate note, filler masthead lines, demo-only "Start over").
