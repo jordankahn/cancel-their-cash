@@ -397,7 +397,7 @@ function renderWalletUI() {
     ? `<strong>${usd(placedUsd)}</strong> placed · ${usd(remUsd)} left`
     : '<strong>$100 placed</strong> — your vote is fully loaded.';
   btn.disabled = false;
-  btn.textContent = remUsd > 0 ? `Cast ${usd(placedUsd)}` : 'Cast my $100';
+  btn.textContent = 'Cast my vote';
 }
 
 // ---------------------------------------------------------------------------
@@ -462,7 +462,7 @@ function openReceipt(fresh) {
   const total = rows.reduce((s, r) => s + r.usdv, 0);
   $('#castReceipt').innerHTML = rows.map((r) =>
     `<li><span class="cr-name">${escapeHtml(r.t.name)}</span><span class="cr-dots"></span><span class="cr-amt">${usd(r.usdv)}</span></li>`
-  ).join('') + `<li class="cr-total"><span class="cr-name">Your vote, deployed</span><span class="cr-dots"></span><span class="cr-amt">${usd(total)}</span></li>`;
+  ).join('') + `<li class="cr-total"><span class="cr-name">Total influence canceled</span><span class="cr-dots"></span><span class="cr-amt">${usd(total)}</span></li>`;
   const saved = localStorage.getItem('ctv-spend-state');
   if (saved) { $('#spendState').value = saved; $('#registerLink').href = `https://vote.gov/register/${saved.toLowerCase()}`; }
   const veil = $('#castVeil');
@@ -486,7 +486,7 @@ async function renderBoard() {
     } else {
       const { trending } = await api('/api/trending?limit=10');
       if (!trending.length) {
-        list.innerHTML = '<li><span class="rank">—</span><span class="who"><span class="nm">A quiet day at the currency desk</span><span class="st">No pledges in 24h</span></span><span class="track"></span><span class="ct"></span></li>';
+        list.innerHTML = '<li><span class="rank">—</span><span class="who"><span class="nm">A quiet day at the arithmetic desk</span><span class="st">No pledges in 24h</span></span><span class="track"></span><span class="ct"></span></li>';
         return;
       }
       drawBoard(list, trending, (r) => `+${usd(r.dayUsd)}`, (r) => r.dayUsd);
@@ -550,7 +550,7 @@ $('#pager').addEventListener('click', (e) => {
 });
 
 // ---------------------------------------------------------------------------
-// Spend-state picker (in receipt)
+// State picker (in receipt)
 // ---------------------------------------------------------------------------
 
 function buildSpendPicker() {
@@ -559,7 +559,7 @@ function buildSpendPicker() {
 }
 
 // ---------------------------------------------------------------------------
-// Certificate of Deposit (1200×630 canvas → PNG)
+// Certificate of Cancellation (1200×630 canvas → PNG)
 // ---------------------------------------------------------------------------
 
 async function drawCertificate() {
@@ -579,7 +579,7 @@ async function drawCertificate() {
   x.fillStyle = '#1c5f42'; x.fillRect(28, 28, W - 56, 74);
   x.fillStyle = '#f2ead6'; x.textAlign = 'left';
   x.font = '700 30px "Archivo Narrow", sans-serif';
-  x.fillText('CERTIFICATE OF DEPOSIT — ONE (1) $100 VOTE', 50, 74);
+  x.fillText('CERTIFICATE OF CANCELLATION — ONE (1) VOTE', 50, 74);
   x.textAlign = 'right'; x.font = '14px "Courier Prime", monospace';
   x.fillText('FORM CTV-26-M · BUREAU OF BALLOT GRIEVANCES', W - 50, 62);
 
@@ -591,7 +591,7 @@ async function drawCertificate() {
   x.fillStyle = '#17161a'; x.font = '900 46px "Fraunces", serif';
   x.fillText(name.toUpperCase(), 62, 204);
   x.fillStyle = '#55534f'; x.font = '19px "Archivo Narrow", sans-serif';
-  x.fillText('DEPLOYED ONE $100 VOTE AT THE OFFICIAL EXCHANGE RATE AGAINST CORPORATE MONEY:', 62, 246);
+  x.fillText('PLEDGED ONE VOTE — WORTH $100 OF INFLUENCE — TO CANCEL THIS CORPORATE MONEY:', 62, 246);
 
   // allocation table (up to 6 lines)
   const shown = rows.slice(0, 6);
@@ -608,11 +608,11 @@ async function drawCertificate() {
   if (rows.length > 6) { x.fillStyle = '#55534f'; x.textAlign = 'left'; x.font = '18px "Courier Prime", monospace'; x.fillText(`+ ${rows.length - 6} more line items`, 62, y); y += 30; }
 
   x.fillStyle = '#17161a'; x.textAlign = 'left'; x.font = '700 30px "Archivo Narrow", sans-serif';
-  x.fillText('TOTAL DEPLOYED', 62, y + 10);
+  x.fillText('TOTAL CANCELED', 62, y + 10);
   x.fillStyle = '#1c5f42'; x.textAlign = 'right'; x.fillText(usd(total), W - 62, y + 10);
 
   x.textAlign = 'center'; x.fillStyle = '#55534f'; x.font = '700 15px "Courier Prime", monospace';
-  x.fillText('NON-TRANSFERABLE · NON-PURCHASABLE · CLEARS ONLY WHEN YOU ACTUALLY VOTE · VOTE.GOV', W / 2, H - 52);
+  x.fillText('SYMBOLIC ONLY · NO REAL MONEY CHANGES HANDS · COUNTS ONLY WHEN YOU ACTUALLY VOTE · VOTE.GOV', W / 2, H - 52);
 
   x.save(); x.translate(W - 195, 200); x.rotate(-0.14);
   x.strokeStyle = 'rgba(28,95,66,0.85)'; x.lineWidth = 5; x.strokeRect(-120, -34, 240, 66);
@@ -633,8 +633,8 @@ async function shareCast(btn) {
   const rows = allocationRows();
   const top = rows[0];
   const text = top
-    ? `I just deployed my $100 vote against corporate money in politics — ${usd(top.usdv)} on ${top.t.name}${rows.length > 1 ? ` and ${rows.length - 1} more` : ''}. Your vote's worth $100 too. Spend it, then vote.`
-    : `Your vote is worth $100 of the corporate money in politics. Spend it, then vote.`;
+    ? `I aimed my $100 vote at corporate money in politics — ${usd(top.usdv)} against ${top.t.name}${rows.length > 1 ? ` and ${rows.length - 1} more` : ''}. It's a metaphor (no real money), but the vote is real. Yours is worth $100 of their influence too — cancel some, then vote.`
+    : `Your vote is worth $100 of the corporate money in politics. It's a metaphor — no real money — but the vote is real. Cancel some, then vote.`;
   try {
     const cv = await drawCertificate();
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
@@ -651,5 +651,5 @@ async function shareCast(btn) {
 
 boot().catch((err) => {
   console.error(err);
-  $('#ledgerGrid').innerHTML = '<p class="empty-note">The currency desk is having technical difficulties. The money, regrettably, is fine.</p>';
+  $('#ledgerGrid').innerHTML = '<p class="empty-note">The arithmetic desk is having technical difficulties. The math, regrettably, is fine.</p>';
 });

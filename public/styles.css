@@ -146,6 +146,7 @@ button { cursor: pointer; font-family: inherit; color: inherit; }
 .hero-dollar { color: var(--green); position: relative; white-space: nowrap; }
 .hero-sub { font-size: clamp(1.2rem, 2.8vw, 1.7rem); font-weight: 500; margin: 22px auto 0; max-width: 30ch; line-height: 1.25; }
 .hero-lead { font-size: 1.05rem; color: var(--ink-70); max-width: 60ch; margin: 20px auto 0; }
+.hero-note { font-size: 0.9rem; font-style: italic; color: var(--ink-60); max-width: 54ch; margin: 14px auto 0; }
 
 .hero-wallet { display: inline-flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 32px; padding: 14px 20px; border: 1.5px solid var(--rule); background: var(--paper); }
 .hw-chips, .wb-chips { display: flex; gap: 6px; }
