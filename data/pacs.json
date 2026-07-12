@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "note": "Corporate PAC federal contributions, 2024 cycle, rounded to the nearest $100,000. Curated snapshot for satire with a citation habit — verify against FEC/OpenSecrets before any public launch. Schema is feed-compatible for a future Integrity Index integration.",
+    "asOf": "2026-07-10",
+    "sources": ["FEC campaign finance statistics (PAC tables)", "OpenSecrets PAC & org profiles"]
+  },
+  "targets": [
+    {"id": "lockheed-martin", "name": "Lockheed Martin PAC", "industry": "DEFENSE", "totalUsd": 2600000, "blurb": "Builds the F-35, which is over budget. Your vote is not. It costs $0 and is worth $100."},
+    {"id": "boeing", "name": "Boeing PAC", "industry": "DEFENSE", "totalUsd": 2300000, "blurb": "Some doors optional. Your ballot's chain of custody is, mercifully, better regulated."},
+    {"id": "raytheon-rtx", "name": "RTX (Raytheon) PAC", "industry": "DEFENSE", "totalUsd": 2200000, "blurb": "Precision-guided contributions to 400+ members of Congress. Guide yours to a polling place."},
+    {"id": "northrop-grumman", "name": "Northrop Grumman PAC", "industry": "DEFENSE", "totalUsd": 2200000, "blurb": "The B-21 is stealthy. So is influence, until you read the FEC filings."},
+    {"id": "general-dynamics", "name": "General Dynamics PAC", "industry": "DEFENSE", "totalUsd": 2000000, "blurb": "Generally dynamic in appropriations season. Be specifically dynamic in November."},
+    {"id": "honeywell", "name": "Honeywell PAC", "industry": "DEFENSE", "totalUsd": 2500000, "blurb": "Makes thermostats and one of the largest corporate PACs in America. Adjust the temperature."},
+    {"id": "l3harris", "name": "L3Harris PAC", "industry": "DEFENSE", "totalUsd": 1400000, "blurb": "Communications systems for the battlefield. Your comms system is one oval and a pen."},
+
+    {"id": "pfizer", "name": "Pfizer PAC", "industry": "PHARMA", "totalUsd": 1200000, "blurb": "Develops vaccines. Also develops relationships with both parties, per the public record."},
+    {"id": "abbvie", "name": "AbbVie PAC", "industry": "PHARMA", "totalUsd": 1300000, "blurb": "Humira's patent had 130+ extensions. Your vote needs zero. It works the first time."},
+    {"id": "eli-lilly", "name": "Eli Lilly PAC", "industry": "PHARMA", "totalUsd": 1000000, "blurb": "Insulin prices came down after decades. Votes are price-controlled at exactly one each."},
+    {"id": "amgen", "name": "Amgen PAC", "industry": "PHARMA", "totalUsd": 1100000, "blurb": "Biotech giant. The most effective compound ever synthesized remains voter turnout."},
+    {"id": "merck", "name": "Merck PAC", "industry": "PHARMA", "totalUsd": 900000, "blurb": "Invented the term blockbuster drug. The ballot box is a generic — equally effective, free."},
+    {"id": "johnson-johnson", "name": "Johnson & Johnson PAC", "industry": "PHARMA", "totalUsd": 800000, "blurb": "No more tears, except at appropriations markup."},
+    {"id": "phrma-assn", "name": "PhRMA (trade association) PAC", "industry": "PHARMA", "totalUsd": 1100000, "blurb": "The industry's industry group. A PAC of PAC-havers. Cancel accordingly."},
+
+    {"id": "exxonmobil", "name": "ExxonMobil PAC", "industry": "OIL & GAS", "totalUsd": 1000000, "blurb": "Knew about climate models early. You can model an election: count the votes."},
+    {"id": "chevron", "name": "Chevron PAC", "industry": "OIL & GAS", "totalUsd": 1000000, "blurb": "Human energy. Your energy: walk to a polling place, burn 40 calories, cancel $100."},
+    {"id": "conocophillips", "name": "ConocoPhillips PAC", "industry": "OIL & GAS", "totalUsd": 800000, "blurb": "Drills in the Arctic. You drill one oval."},
+    {"id": "marathon-petroleum", "name": "Marathon Petroleum PAC", "industry": "OIL & GAS", "totalUsd": 1200000, "blurb": "A marathon is 26.2 miles. Your polling place is closer than that. Probably."},
+    {"id": "valero", "name": "Valero PAC", "industry": "OIL & GAS", "totalUsd": 1400000, "blurb": "Refines crude into gasoline and contributions. Refine your grievance into a ballot."},
+    {"id": "occidental", "name": "Occidental Petroleum PAC", "industry": "OIL & GAS", "totalUsd": 600000, "blurb": "Occasionally occidental, consistently contributing."},
+    {"id": "koch-industries", "name": "Koch Industries PAC", "industry": "OIL & GAS", "totalUsd": 2800000, "blurb": "The most famous political checkbook in America. It still can't fit inside a voting booth."},
+
+    {"id": "goldman-sachs", "name": "Goldman Sachs PAC", "industry": "WALL STREET", "totalUsd": 900000, "blurb": "Does God's work, per its former CEO. Voting remains available to laypeople."},
+    {"id": "bank-of-america", "name": "Bank of America PAC", "industry": "WALL STREET", "totalUsd": 1500000, "blurb": "Higher standards. Standard contribution limits. One standard vote cancels $100."},
+    {"id": "jpmorgan", "name": "JPMorgan Chase PAC", "industry": "WALL STREET", "totalUsd": 1000000, "blurb": "Too big to fail. Your vote: too small to buy. That's the design."},
+    {"id": "wells-fargo", "name": "Wells Fargo PAC", "industry": "WALL STREET", "totalUsd": 1000000, "blurb": "Once opened accounts nobody asked for. Open one nobody can close: a voter registration."},
+    {"id": "morgan-stanley", "name": "Morgan Stanley PAC", "industry": "WALL STREET", "totalUsd": 1000000, "blurb": "Manages $5 trillion in assets and one PAC. You manage one vote. Yours appreciates."},
+    {"id": "citigroup", "name": "Citigroup PAC", "industry": "WALL STREET", "totalUsd": 800000, "blurb": "Citi never sleeps. Polls close at 8. Set an alarm."},
+    {"id": "blackrock", "name": "BlackRock PAC", "industry": "WALL STREET", "totalUsd": 600000, "blurb": "Votes billions of shares in proxy season. In November, holds exactly zero proxies for you."},
+    {"id": "amex", "name": "American Express PAC", "industry": "WALL STREET", "totalUsd": 900000, "blurb": "Membership has its privileges. Citizenship has a better one."},
+
+    {"id": "att", "name": "AT&T PAC", "industry": "TELECOM & MEDIA", "totalUsd": 2400000, "blurb": "Historically a top-3 corporate PAC. Can you hear the FEC filings now? Good."},
+    {"id": "comcast", "name": "Comcast PAC", "industry": "TELECOM & MEDIA", "totalUsd": 2400000, "blurb": "Your appointment to cancel this influence is between 8am and 8pm on Election Day."},
+    {"id": "verizon", "name": "Verizon PAC", "industry": "TELECOM & MEDIA", "totalUsd": 1500000, "blurb": "5G coverage: most of America. Voting coverage: all of it, one per customer."},
+    {"id": "t-mobile", "name": "T-Mobile PAC", "industry": "TELECOM & MEDIA", "totalUsd": 1300000, "blurb": "The un-carrier still carries a PAC. Un-carry $100 of it."},
+    {"id": "charter", "name": "Charter Communications PAC", "industry": "TELECOM & MEDIA", "totalUsd": 1500000, "blurb": "Spectrum: the service. Spectrum of influence: the FEC table below."},
+    {"id": "disney", "name": "Disney PAC", "industry": "TELECOM & MEDIA", "totalUsd": 500000, "blurb": "The happiest PAC on earth. Your vote: the cheapest fast pass in democracy."},
+
+    {"id": "amazon", "name": "Amazon PAC", "industry": "BIG TECH", "totalUsd": 1800000, "blurb": "Same-day delivery on almost everything. Democracy still requires in-person or by-mail."},
+    {"id": "microsoft", "name": "Microsoft PAC", "industry": "BIG TECH", "totalUsd": 1500000, "blurb": "Would you like to restart democracy now or schedule it for November 3?"},
+    {"id": "google", "name": "Google (Alphabet) PAC", "industry": "BIG TECH", "totalUsd": 1000000, "blurb": "Knows what you searched. Doesn't know how you vote. Nobody does. That's the whole point."},
+    {"id": "meta", "name": "Meta PAC", "industry": "BIG TECH", "totalUsd": 500000, "blurb": "Moved fast, broke things. Voting: slow, unbroken since 1788, still shipping."},
+    {"id": "apple", "name": "Apple PAC*", "industry": "BIG TECH", "totalUsd": 100000, "blurb": "*Apple famously has no corporate PAC — this line item exists so we could tell you that. Executives give personally. The oval works anyway."},
+    {"id": "intuit", "name": "Intuit PAC", "industry": "BIG TECH", "totalUsd": 700000, "blurb": "Lobbied for years to keep taxes complicated. Voting is still free-file."},
+
+    {"id": "unitedhealth", "name": "UnitedHealth Group PAC", "industry": "INSURANCE", "totalUsd": 1600000, "blurb": "Your claim to one vote is pre-approved, no referral required."},
+    {"id": "bcbs", "name": "Blue Cross Blue Shield PAC", "industry": "INSURANCE", "totalUsd": 2500000, "blurb": "In-network with most of Congress, per the filings. Your ballot has no deductible."},
+    {"id": "cigna", "name": "Cigna PAC", "industry": "INSURANCE", "totalUsd": 900000, "blurb": "Prior authorization is not required to vote. We checked."},
+    {"id": "elevance", "name": "Elevance Health PAC", "industry": "INSURANCE", "totalUsd": 1000000, "blurb": "Formerly Anthem. Rebrands cost millions; your re-registration after a move costs $0."},
+    {"id": "aflac", "name": "Aflac PAC", "industry": "INSURANCE", "totalUsd": 1300000, "blurb": "The duck is charming. The disbursement table is less so."},
+    {"id": "state-farm", "name": "State Farm PAC", "industry": "INSURANCE", "totalUsd": 800000, "blurb": "Like a good neighbor, show up to the same polling place as your actual neighbors."},
+
+    {"id": "adm", "name": "Archer Daniels Midland PAC", "industry": "AGRIBUSINESS & FOOD", "totalUsd": 500000, "blurb": "In everything you eat. Not in your ballot. Keep it that way."},
+    {"id": "tyson", "name": "Tyson Foods PAC", "industry": "AGRIBUSINESS & FOOD", "totalUsd": 400000, "blurb": "Processes 45 million chickens a week. Your vote is processed once, by hand, with witnesses."},
+    {"id": "crystal-sugar", "name": "American Crystal Sugar PAC", "industry": "AGRIBUSINESS & FOOD", "totalUsd": 3000000, "blurb": "A beet co-op that routinely out-gives Wall Street banks. Big Sugar is real and it is filing."},
+    {"id": "deere", "name": "John Deere PAC", "industry": "AGRIBUSINESS & FOOD", "totalUsd": 700000, "blurb": "Fought right-to-repair. Your democracy ships with user-serviceable parts: you."},
+    {"id": "coca-cola", "name": "Coca-Cola PAC", "industry": "AGRIBUSINESS & FOOD", "totalUsd": 600000, "blurb": "Teaches the world to sing. The chorus that matters is counted in November."},
+    {"id": "mcdonalds", "name": "McDonald's PAC", "industry": "AGRIBUSINESS & FOOD", "totalUsd": 700000, "blurb": "Billions and billions served. Ballots: one per person, no supersizing."},
+
+    {"id": "union-pacific", "name": "Union Pacific PAC", "industry": "TRANSPORT", "totalUsd": 1900000, "blurb": "Owns 32,000 miles of track. You need to travel, on average, two."},
+    {"id": "ups", "name": "UPS PAC", "industry": "TRANSPORT", "totalUsd": 2500000, "blurb": "What can brown do for you? $2.5M for Congress, apparently. Return to sender."},
+    {"id": "fedex", "name": "FedEx PAC", "industry": "TRANSPORT", "totalUsd": 1600000, "blurb": "When your vote absolutely, positively has to be there by 8pm on November 3."},
+    {"id": "delta", "name": "Delta Air Lines PAC", "industry": "TRANSPORT", "totalUsd": 1200000, "blurb": "Boarding by zones. Voting: everyone is Zone 1."},
+    {"id": "american-airlines", "name": "American Airlines PAC", "industry": "TRANSPORT", "totalUsd": 1200000, "blurb": "Your vote has no change fees, no blackout dates, and the middle seat is a private booth."},
+    {"id": "gm", "name": "General Motors PAC", "industry": "TRANSPORT", "totalUsd": 1000000, "blurb": "Sees the USA in a Chevrolet. The USA would like to see you at your precinct."},
+
+    {"id": "altria", "name": "Altria PAC", "industry": "VICE", "totalUsd": 1500000, "blurb": "Rebranded from Philip Morris. The filings did not get the rebrand memo."},
+    {"id": "reynolds", "name": "Reynolds American PAC", "industry": "VICE", "totalUsd": 1000000, "blurb": "Warning: contains influence. Voting has no known side effects except results."},
+    {"id": "anheuser-busch", "name": "Anheuser-Busch PAC", "industry": "VICE", "totalUsd": 700000, "blurb": "This vote's for you. Literally. It's the only one you get."},
+    {"id": "nbwa", "name": "Beer Wholesalers (NBWA) PAC", "industry": "VICE", "totalUsd": 3300000, "blurb": "The beer distributors' PAC out-gives almost every corporation in America. Big Beer runs deep."},
+    {"id": "caesars", "name": "Caesars Entertainment PAC", "industry": "VICE", "totalUsd": 400000, "blurb": "The house always wins, except in a secret ballot, where the house isn't registered."},
+
+    {"id": "fairshake", "name": "Fairshake (crypto super PAC)", "industry": "CRYPTO", "totalUsd": 169000000, "blurb": "Not a corporate PAC — a $169M industry super PAC war chest (reported independent expenditures). The final boss of this ledger. Bring friends."},
+    {"id": "coinbase", "name": "Coinbase PAC", "industry": "CRYPTO", "totalUsd": 300000, "blurb": "Your vote is proof-of-personhood. One per wallet. No gas fees."}
+  ]
+}

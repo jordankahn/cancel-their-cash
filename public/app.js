@@ -1,6 +1,12 @@
-/* Cancel Their Vote — frontend. No frameworks, no tracking, no data
-   beyond an optional first name attached to a number. */
+/* Cancel Their Cash — frontend, chip-allocation edition. No frameworks, no
+   tracking. You hold one $100 vote = ten $10 chips; you allocate them across
+   corporate PACs in your own browser, then cast once. */
 'use strict';
+
+const BUDGET_USD = 100;
+const CHIP_USD = 10;
+const BUDGET_CHIPS = BUDGET_USD / CHIP_USD; // 10
+const WALLET_KEY = 'ctv-wallet-v1';
 
 const STATES = {
   AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
@@ -19,16 +25,96 @@ const STATES = {
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n) => Number(n).toLocaleString('en-US');
+const usd = (n) => '$' + fmt(Math.round(n));
 
 let ROSTER = [];
-let currentState = localStorage.getItem('ctv-state') || 'ALL';
+const BY_ID = new Map();
 let currentTag = 'ALL';
 let searchQuery = '';
 let currentSheet = 1;
 const SHEET_SIZE = 12;
-const myStamps = new Map(); // celeb id -> times stamped this session
 let boardMode = 'leader';
-let lastStatsTotal = 0;
+
+// ---------------------------------------------------------------------------
+// Wallet (browser-local; no account)
+// ---------------------------------------------------------------------------
+
+function loadWallet() {
+  try {
+    const w = JSON.parse(localStorage.getItem(WALLET_KEY));
+    if (w && typeof w.alloc === 'object') return { alloc: w.alloc || {}, cast: !!w.cast, name: w.name || '' };
+  } catch (_) { /* fresh */ }
+  return { alloc: {}, cast: false, name: '' };
+}
+let wallet = loadWallet();
+function saveWallet() { localStorage.setItem(WALLET_KEY, JSON.stringify(wallet)); }
+
+const chipsOn = (id) => wallet.alloc[id] || 0;
+const placedChips = () => Object.values(wallet.alloc).reduce((s, n) => s + n, 0);
+const remainingChips = () => BUDGET_CHIPS - placedChips();
+
+function addChip(id) {
+  if (wallet.cast || remainingChips() <= 0) return;
+  wallet.alloc[id] = chipsOn(id) + 1;
+  saveWallet();
+  afterWalletChange(id);
+  chipDropFeedback(id);
+}
+
+// A little tactile reward for the core action: pop the seal, float a "+$10",
+// buzz, and flash the wallet bar when the last chip lands.
+function chipDropFeedback(id) {
+  if (navigator.vibrate) navigator.vibrate(12);
+  const row = document.querySelector(`.lrow[data-id="${CSS.escape(id)}"]`);
+  if (!row) return;
+  const seal = row.querySelector('.lrow-seal');
+  if (seal) { seal.classList.remove('is-pop'); void seal.offsetWidth; seal.classList.add('is-pop'); }
+  const tok = document.createElement('span');
+  tok.className = 'chip-fly';
+  tok.textContent = '+$10';
+  row.appendChild(tok);
+  setTimeout(() => tok.remove(), 750);
+  if (remainingChips() === 0) {
+    const bar = $('#walletBar');
+    if (bar) { bar.classList.remove('is-full'); void bar.offsetWidth; bar.classList.add('is-full'); }
+  }
+}
+function removeChip(id) {
+  if (wallet.cast || chipsOn(id) <= 0) return;
+  wallet.alloc[id] = chipsOn(id) - 1;
+  if (wallet.alloc[id] === 0) delete wallet.alloc[id];
+  saveWallet();
+  afterWalletChange(id);
+}
+function afterWalletChange(id) {
+  updateRow(id);      // patch only the touched row so its button survives the click
+  renderWalletUI();
+  // every + button also depends on the global remaining budget
+  const dis = wallet.cast || remainingChips() <= 0;
+  document.querySelectorAll('.lrow [data-plus]').forEach((b) => { b.disabled = dis; });
+}
+
+function updateRow(id) {
+  const row = document.querySelector(`.lrow[data-id="${CSS.escape(id)}"]`);
+  const t = BY_ID.get(id);
+  if (!row || !t) return;
+  const yours = chipsOn(id);
+  const over = balanceUsd(t) < 0;
+  const inkPct = pctOf(pledgedUsd(t), t);
+  const youPct = pctOf(yourPendingUsd(t), t);
+  row.classList.toggle('is-yours', yours > 0);
+  row.classList.toggle('is-overdrawn', over);
+  row.querySelector('.meter-ink').style.width = inkPct.toFixed(2) + '%';
+  const my = row.querySelector('.meter-you');
+  my.style.left = inkPct.toFixed(2) + '%';
+  my.style.width = Math.min(100 - inkPct, youPct).toFixed(2) + '%';
+  my.classList.toggle('has-you', yourPendingUsd(t) > 0);
+  row.querySelector('.lrow-status').innerHTML = over
+    ? `<span class="over-tag">OVERDRAWN ${usd(-balanceUsd(t))} past zero</span>`
+    : `${usd(totalNeutralized(t))} canceled${yours ? ` · <span class="you-tag">you: ${usd(yours * CHIP_USD)}</span>` : ''}`;
+  row.querySelector('.step-val').textContent = usd(yours * CHIP_USD);
+  row.querySelector('[data-minus]').disabled = wallet.cast || yours === 0;
+}
 
 // ---------------------------------------------------------------------------
 // Data loading
@@ -41,23 +127,21 @@ async function api(path) {
 }
 
 async function boot() {
-  buildStatePicker();
   initIndexSpy();
-  $('#filedBy').value = localStorage.getItem('ctv-name') || '';
-  $('#filedBy').addEventListener('change', () => {
-    localStorage.setItem('ctv-name', $('#filedBy').value.trim());
-  });
+  buildSpendPicker();
+  wireCastControls();
 
   const [roster, stats, feed] = await Promise.all([
     api('/api/roster'), api('/api/stats'), api('/api/feed?limit=25'),
   ]);
-  ROSTER = roster.celebs;
+  ROSTER = roster.targets;
+  ROSTER.forEach((t) => BY_ID.set(t.id, t));
   buildFilters();
   renderStats(stats);
   renderGrid();
   renderBoard();
-  renderSnapshot();
   renderTicker(feed.feed);
+  renderWalletUI();
   setInterval(refreshLive, 25000);
 }
 
@@ -67,71 +151,48 @@ async function refreshLive() {
     renderStats(stats, true);
     renderTicker(feed.feed);
     renderBoard();
-    renderSnapshot();
+    // Deliberately do NOT rebuild the ledger grid here — that would destroy a
+    // stepper button mid-click and interrupt allocation. The crowd totals in
+    // visible rows refresh on the next user-driven render (filter/page/cast).
   } catch (_) { /* offline blip; try again next tick */ }
 }
 
 // ---------------------------------------------------------------------------
-// State picker
+// Filters
 // ---------------------------------------------------------------------------
-
-function buildStatePicker() {
-  const sel = $('#statePick');
-  sel.innerHTML = '<option value="ALL">All states</option>' +
-    Object.entries(STATES)
-      .map(([code, name]) => `<option value="${code}">${name}</option>`)
-      .join('');
-  sel.value = currentState;
-  sel.addEventListener('change', () => {
-    currentState = sel.value;
-    localStorage.setItem('ctv-state', currentState);
-    currentSheet = 1;
-    renderGrid();
-  });
-}
 
 function buildFilters() {
-  const tags = [...new Set(ROSTER.map((c) => c.tag))].sort();
+  const tags = [...new Set(ROSTER.map((t) => t.industry))].sort();
   const tagSel = $('#tagPick');
-  tagSel.innerHTML = '<option value="ALL">All categories</option>' +
-    tags.map((t) => `<option value="${t}">${t.charAt(0) + t.slice(1).toLowerCase()}</option>`).join('');
-  tagSel.addEventListener('change', () => {
-    currentTag = tagSel.value;
-    currentSheet = 1;
-    renderGrid();
-  });
+  tagSel.innerHTML = '<option value="ALL">All industries</option>' +
+    tags.map((t) => `<option value="${t}">${tagLabel(t)}</option>`).join('');
+  tagSel.addEventListener('change', () => { currentTag = tagSel.value; currentSheet = 1; renderGrid(); });
   $('#docketSearch').addEventListener('input', (e) => {
-    searchQuery = e.target.value.trim().toLowerCase();
-    currentSheet = 1;
-    renderGrid();
+    searchQuery = e.target.value.trim().toLowerCase(); currentSheet = 1; renderGrid();
   });
 }
 
 // ---------------------------------------------------------------------------
-// Stats + ticker
+// Stats, ticker, index spy
 // ---------------------------------------------------------------------------
 
 function renderStats(stats, quiet) {
-  lastStatsTotal = stats.total;
-  countTo($('#statTotal'), stats.total, quiet);
-  countTo($('#indexTotal'), stats.total, quiet);
-  $('#statStates').textContent = stats.states;
-  if (stats.top) $('#statTop').textContent = stats.top.name;
+  countTo($('#indexTotal'), stats.total, quiet, usd);
+  const live = $('#heroLive');
+  if (live) live.innerHTML =
+    `Voters have already canceled <strong>${usd(stats.total)}</strong> of <strong>${usd(stats.outstanding)}</strong> in disclosed corporate PAC money. Your $100 is next.`;
 }
 
-function countTo(el, target, quiet) {
-  const start = Number((el.textContent || '0').replace(/,/g, '')) || 0;
+function countTo(el, target, quiet, format = fmt) {
+  if (!el) return;
+  const start = Number((el.textContent || '0').replace(/[^0-9]/g, '')) || 0;
   if (quiet && start === target) return;
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    el.textContent = fmt(target);
-    return;
-  }
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = format(target); return; }
   const t0 = performance.now();
-  const dur = 900;
   const step = (t) => {
-    const k = Math.min(1, (t - t0) / dur);
+    const k = Math.min(1, (t - t0) / 900);
     const eased = 1 - Math.pow(1 - k, 3);
-    el.textContent = fmt(Math.round(start + (target - start) * eased));
+    el.textContent = format(Math.round(start + (target - start) * eased));
     if (k < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -145,6 +206,17 @@ function ago(ms) {
   return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
 }
 
+function renderTicker(feed) {
+  const items = feed.map((f) =>
+    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A voter')} canceled ${usd(f.usd)} of ${escapeHtml(f.target)} · ${ago(f.agoMs)}</span>`
+  ).join('');
+  $('#tickerTrack').innerHTML = items + items;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function initIndexSpy() {
   const links = [...document.querySelectorAll('.index-links a')];
   const targets = links.map((a) => document.querySelector(a.getAttribute('href')));
@@ -152,232 +224,254 @@ function initIndexSpy() {
   const update = () => {
     ticking = false;
     let current = -1;
-    targets.forEach((t, i) => {
-      if (t && t.getBoundingClientRect().top <= 80) current = i;
-    });
+    targets.forEach((t, i) => { if (t && t.getBoundingClientRect().top <= 90) current = i; });
     links.forEach((a, i) => {
       a.classList.toggle('is-current', i === current);
-      if (i === current) a.setAttribute('aria-current', 'true');
-      else a.removeAttribute('aria-current');
+      if (i === current) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
     });
   };
-  document.addEventListener('scroll', () => {
-    if (!ticking) { ticking = true; requestAnimationFrame(update); }
-  }, { passive: true });
-  window.addEventListener('resize', () => {
-    if (!ticking) { ticking = true; requestAnimationFrame(update); }
-  });
+  document.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  window.addEventListener('resize', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } });
   update();
 }
 
-function renderTicker(feed) {
-  const items = feed.map((f) =>
-    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A registered grudge-holder')} canceled ${escapeHtml(f.celeb)}'s vote in ${f.state}${f.times > 1 ? ` ×${f.times}` : ''} · ${ago(f.agoMs)}</span>`
-  ).join('');
-  $('#tickerTrack').innerHTML = items + items; // duplicated for a seamless loop
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-async function renderSnapshot() {
-  try {
-    const [{ leaderboard }, { trending }] = await Promise.all([
-      api('/api/leaderboard?limit=5'), api('/api/trending?limit=1'),
-    ]);
-    $('#snapList').innerHTML = leaderboard.map((r, i) => `
-      <li>
-        <span class="rank">${String(i + 1).padStart(2, '0')}</span>
-        <span class="nm">${escapeHtml(r.name)}</span>
-        <span class="st">${r.state}</span>
-        <span class="dots"></span>
-        <span class="ct">${fmt(r.count)}</span>
-      </li>
-    `).join('');
-    const trend = $('#snapTrend');
-    if (trending.length) {
-      trend.hidden = false;
-      trend.textContent = `Trending today: ${trending[0].name} +${fmt(trending[0].dayCount)}`;
-    } else {
-      trend.hidden = true;
-    }
-  } catch (_) { /* snapshot is decorative; boards remain the source of truth */ }
-}
-
 // ---------------------------------------------------------------------------
-// Ballot grid
+// The ledger
 // ---------------------------------------------------------------------------
+
+const tagLabel = (t) => t.charAt(0) + t.slice(1).toLowerCase();
+const pledgedUsd = (t) => t.pledged || 0;
+
+// Industry seals — original engraved line-art (no trademarks), tinted with a
+// muted "stamp ink" color per sector so the ledger has visual rhythm. Red is
+// deliberately absent (reserved for OVERDRAWN).
+const INDUSTRY_COLORS = {
+  'DEFENSE': '#2b5f6b', 'PHARMA': '#2f7d4f', 'OIL & GAS': '#7a5326',
+  'WALL STREET': '#1c5f42', 'TELECOM & MEDIA': '#37477e', 'BIG TECH': '#1f7a72',
+  'INSURANCE': '#3f5a7a', 'AGRIBUSINESS & FOOD': '#5f6b2b', 'TRANSPORT': '#3a5a6b',
+  'VICE': '#7a3a5a', 'CRYPTO': '#8a6a1f',
+};
+const INDUSTRY_ICONS = {
+  'DEFENSE': '<path d="M12 3l7 2.5v5.5c0 4-3 6.8-7 8-4-1.2-7-4-7-8V5.5L12 3z"/><path d="M12 8v4M10 10h4"/>',
+  'PHARMA': '<rect x="4" y="8.5" width="16" height="7" rx="3.5"/><path d="M12 8.5v7"/>',
+  'OIL & GAS': '<path d="M12 3.5c3 4.2 4.8 6.4 4.8 8.8a4.8 4.8 0 01-9.6 0c0-2.4 1.8-4.6 4.8-8.8z"/>',
+  'WALL STREET': '<path d="M3.5 9L12 4.5 20.5 9"/><path d="M5.5 9.5v8M9.5 9.5v8M14.5 9.5v8M18.5 9.5v8"/><path d="M4 20h16"/>',
+  'TELECOM & MEDIA': '<path d="M12 9v9"/><path d="M9 20h6l-3-11z"/><path d="M7.5 6.5a5 5 0 000 5M16.5 6.5a5 5 0 010 5"/>',
+  'BIG TECH': '<rect x="8" y="8" width="8" height="8" rx="1"/><path d="M11 8V5M13 8V5M11 19v-3M13 19v-3M8 11H5M8 13H5M19 11h-3M19 13h-3"/>',
+  'INSURANCE': '<path d="M4 11a8 8 0 0116 0z"/><path d="M12 11v6a2 2 0 01-4 0"/>',
+  'AGRIBUSINESS & FOOD': '<path d="M12 20V8"/><path d="M12 12c-2.4 0-4-1.6-4-4 2.4 0 4 1.6 4 4zM12 12c2.4 0 4-1.6 4-4-2.4 0-4 1.6-4 4z"/><path d="M12 8c-2 0-3.3-1.3-3.3-3.3C11 4.7 12 6 12 8zM12 8c2 0 3.3-1.3 3.3-3.3C13 4.7 12 6 12 8z"/>',
+  'TRANSPORT': '<rect x="2.5" y="7.5" width="11" height="7.5"/><path d="M13.5 10h3.5l3 3v2h-6.5z"/><circle cx="6" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/>',
+  'VICE': '<path d="M10 3.5h4v2.5l1 2.5V19a1.5 1.5 0 01-1.5 1.5h-3A1.5 1.5 0 019 19V8.5l1-2.5z"/><path d="M9 12h6"/>',
+  'CRYPTO': '<circle cx="12" cy="12" r="8"/><path d="M12 7.5l3.2 4.5-3.2 4.5-3.2-4.5z"/>',
+};
+const industryColor = (ind) => INDUSTRY_COLORS[ind] || '#43402f';
+const industrySeal = (ind) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${INDUSTRY_ICONS[ind] || ''}</svg>`;
+const yourPendingUsd = (t) => (wallet.cast ? 0 : chipsOn(t.id) * CHIP_USD);
+const totalNeutralized = (t) => pledgedUsd(t) + yourPendingUsd(t);
+const balanceUsd = (t) => t.totalUsd - totalNeutralized(t);
+const pctOf = (usdVal, t) => Math.min(100, (usdVal / t.totalUsd) * 100);
 
 function filteredRoster() {
-  return ROSTER.filter((c) =>
-    (currentState === 'ALL' || c.state === currentState) &&
-    (currentTag === 'ALL' || c.tag === currentTag) &&
-    (!searchQuery || c.name.toLowerCase().includes(searchQuery))
-  ).sort((a, b) => b.count - a.count);
+  return ROSTER.filter((t) =>
+    (currentTag === 'ALL' || t.industry === currentTag) &&
+    (!searchQuery || t.name.toLowerCase().includes(searchQuery))
+  ).sort((a, b) => b.totalUsd - a.totalUsd);
+}
+
+function renderRollup(list) {
+  const rollup = $('#rollup');
+  if (currentTag === 'ALL' || !list.length) { rollup.hidden = true; return; }
+  const total = list.reduce((s, t) => s + t.totalUsd, 0);
+  const neut = list.reduce((s, t) => s + totalNeutralized(t), 0);
+  rollup.hidden = false;
+  rollup.innerHTML =
+    `<span class="rollup-name">${escapeHtml(tagLabel(currentTag))} — industry total</span>
+     <span class="rollup-fig">OUTSTANDING ${usd(total)}</span>
+     <span class="rollup-fig rollup-neut">CANCELED ${usd(neut)} · ${((neut / total) * 100).toFixed(1)}%</span>`;
 }
 
 function renderGrid() {
-  const grid = $('#celebGrid');
+  const grid = $('#ledgerGrid');
   const list = filteredRoster();
 
-  const parts = [];
-  parts.push(currentState === 'ALL' ? 'Cancelable residents, all states' : `Cancelable residents of ${STATES[currentState]}`);
-  if (currentTag !== 'ALL') parts.push(currentTag);
+  const parts = ['The Money'];
+  if (currentTag !== 'ALL') parts.push(tagLabel(currentTag));
   if (searchQuery) parts.push(`“${searchQuery}”`);
-  $('#ballot').textContent = `Part 1 — ${parts.join(' · ')} (${list.length} on file)`;
+  const barText = `${parts.join(' · ')} (${list.length} PAC${list.length === 1 ? '' : 's'})`;
+  if ($('#ledger').textContent !== barText) $('#ledger').textContent = barText;
+
+  renderRollup(list);
 
   if (!list.length) {
-    grid.innerHTML = '<p class="empty-note">No famous ballots match this combination of grievances. Loosen a filter — then vote anyway.</p>';
-    const pagerEl = $('#pager');
-    if (pagerEl) pagerEl.innerHTML = '';
-    const annEl = $('#pagerAnnounce');
-    if (annEl) annEl.textContent = '';
+    grid.innerHTML = '<p class="empty-note">No PACs match. The money is still out there — clear a filter and place your chips anyway.</p>';
+    $('#pager').innerHTML = ''; $('#pagerAnnounce').textContent = '';
     return;
   }
 
   const totalSheets = Math.ceil(list.length / SHEET_SIZE);
   if (currentSheet > totalSheets) currentSheet = totalSheets;
   const page = list.slice((currentSheet - 1) * SHEET_SIZE, currentSheet * SHEET_SIZE);
+  const locked = wallet.cast;
+  const noBudget = remainingChips() <= 0;
 
-  grid.innerHTML = page.map((c) => `
-    <article class="brow" data-id="${c.id}">
-      <div class="brow-main">
-        <button class="oval${myStamps.has(c.id) ? ' is-filled' : ''}" data-id="${c.id}"
-          aria-label="Cancel ${escapeHtml(c.name)}'s vote"></button>
-        <div class="brow-txt">
-          <h3 class="brow-name">${escapeHtml(c.name)}</h3>
-          <p class="brow-meta">${STATES[c.state] || c.state} · ${c.tag}</p>
-          <p class="brow-blurb">${escapeHtml(c.blurb)}</p>
+  grid.innerHTML = page.map((t) => {
+    const yours = chipsOn(t.id);
+    const over = balanceUsd(t) < 0;
+    const inkPct = pctOf(pledgedUsd(t), t);
+    const youPct = pctOf(yourPendingUsd(t), t);
+    return `
+    <article class="lrow${over ? ' is-overdrawn' : ''}${yours ? ' is-yours' : ''}" data-id="${t.id}" title="${escapeHtml(t.blurb)}">
+      <div class="lrow-head">
+        <span class="lrow-seal" style="color:${industryColor(t.industry)}">${industrySeal(t.industry)}</span>
+        <div class="lrow-headmain">
+          <h3 class="lrow-name">${escapeHtml(t.name)}</h3>
+          <p class="lrow-meta" style="color:${industryColor(t.industry)}">${escapeHtml(tagLabel(t.industry))}</p>
         </div>
+        <span class="lrow-total">${usd(t.totalUsd)}<span class="lrow-total-lbl">on the books</span></span>
       </div>
-      <p class="brow-count">Cancellations on file <span class="dots"></span> <strong data-count>${fmt(c.count)}</strong></p>
-      <div class="brow-actions" ${myStamps.has(c.id) ? '' : 'hidden'}>
-        <p class="brow-status" data-status>${stampStatusText(myStamps.get(c.id) || 0)}</p>
-        <div class="brow-links">
-          <a class="act-register" href="https://vote.gov/register/${c.state.toLowerCase()}" target="_blank" rel="noopener">Register to vote →</a>
-          <button type="button" data-cert>Certificate</button>
-          <button type="button" data-share>Share</button>
-          <button type="button" data-again>Stamp again</button>
-        </div>
+      <div class="meter" role="img" aria-label="${(inkPct + youPct).toFixed(0)}% canceled">
+        <span class="meter-ink" style="width:${inkPct.toFixed(2)}%"></span>
+        <span class="meter-you${youPct > 0 ? ' has-you' : ''}" style="left:${inkPct.toFixed(2)}%;width:${Math.min(100 - inkPct, youPct).toFixed(2)}%"></span>
       </div>
-      ${myStamps.has(c.id) ? '<span class="stamp-impression is-static" style="--rot:-6deg;right:10px;top:12px">CANCELED</span>' : ''}
-    </article>
-  `).join('');
+      <div class="lrow-foot">
+        <span class="lrow-status">${over
+          ? `<span class="over-tag">OVERDRAWN ${usd(-balanceUsd(t))} past zero</span>`
+          : `${usd(totalNeutralized(t))} canceled${yours ? ` · <span class="you-tag">you: ${usd(yours * CHIP_USD)}</span>` : ''}`}</span>
+        <span class="stepper" ${locked ? 'data-locked' : ''}>
+          <button type="button" class="step-btn" data-minus aria-label="Remove a $10 chip from ${escapeHtml(t.name)}" ${locked || yours === 0 ? 'disabled' : ''}>−</button>
+          <span class="step-val" aria-live="polite">${usd(yours * CHIP_USD)}</span>
+          <button type="button" class="step-btn" data-plus aria-label="Place a $10 chip on ${escapeHtml(t.name)}" ${locked || noBudget ? 'disabled' : ''}>+</button>
+        </span>
+      </div>
+      ${over ? '<span class="paper-stamp" style="--rot:-5deg">OVERDRAWN</span>' : ''}
+    </article>`;
+  }).join('');
 
   renderPager(totalSheets);
 }
 
-function stampStatusText(times) {
-  return times <= 1
-    ? 'Status: pending until you actually vote.'
-    : `Stamped ×${times}. It only had 1 vote — ${times - 1} filed under SPITE, SURPLUS. Still pending until you vote.`;
+$('#ledgerGrid').addEventListener('click', (e) => {
+  const row = e.target.closest('.lrow'); if (!row) return;
+  if (e.target.closest('[data-plus]')) return addChip(row.dataset.id);
+  if (e.target.closest('[data-minus]')) return removeChip(row.dataset.id);
+});
+
+// ---------------------------------------------------------------------------
+// Wallet UI (hero preview + sticky bar)
+// ---------------------------------------------------------------------------
+
+function chipPips(filled) {
+  let out = '';
+  for (let i = 0; i < BUDGET_CHIPS; i++) out += `<span class="pip${i < filled ? ' is-on' : ''}"></span>`;
+  return out;
 }
 
-function renderPager(totalSheets) {
-  const pager = $('#pager');
-  const announce = $('#pagerAnnounce');
-  if (totalSheets <= 1) {
-    pager.innerHTML = '';
-    if (announce) announce.textContent = '';
+function renderWalletUI() {
+  const placed = placedChips();
+  const placedUsd = placed * CHIP_USD;
+  const remUsd = remainingChips() * CHIP_USD;
+
+  const heroChips = $('#heroChips');
+  if (heroChips) heroChips.innerHTML = chipPips(placed);
+  const heroRem = $('#heroRemaining');
+  if (heroRem) heroRem.textContent = wallet.cast ? 'Cast ✓' : usd(remUsd);
+
+  const bar = $('#walletBar');
+  const msg = $('#walletMsg');
+  const btn = $('#castBtn');
+  $('#walletChips').innerHTML = chipPips(placed);
+
+  if (wallet.cast) {
+    bar.hidden = false;
+    bar.classList.add('is-cast');
+    msg.innerHTML = '<strong>Vote cast ✓</strong> — now go make it real.';
+    btn.disabled = false;
+    btn.textContent = 'View receipt';
     return;
   }
-  if (announce) announce.textContent = `Sheet ${currentSheet} of ${totalSheets}`;
-  const numbers = totalSheets <= 8
-    ? Array.from({ length: totalSheets }, (_, i) =>
-        `<button class="sheet-no${i + 1 === currentSheet ? ' is-current' : ''}" data-sheet="${i + 1}" aria-label="Sheet ${i + 1}"${i + 1 === currentSheet ? ' aria-current="page"' : ''}>${i + 1}</button>`
-      ).join('')
-    : `<span>Sheet ${currentSheet} of ${totalSheets}</span>`;
-  pager.innerHTML = `
-    <button data-sheet="${currentSheet - 1}" ${currentSheet === 1 ? 'disabled' : ''} aria-label="Previous sheet">◀</button>
-    ${numbers}
-    <button data-sheet="${currentSheet + 1}" ${currentSheet === totalSheets ? 'disabled' : ''} aria-label="Next sheet">▶</button>
-  `;
+  bar.classList.remove('is-cast');
+  if (placed === 0) { bar.hidden = true; return; }
+  bar.hidden = false;
+  msg.innerHTML = remUsd > 0
+    ? `<strong>${usd(placedUsd)}</strong> placed · ${usd(remUsd)} left`
+    : '<strong>$100 placed</strong> — your vote is fully loaded.';
+  btn.disabled = false;
+  btn.textContent = 'Cast my vote';
 }
 
-$('#pager').addEventListener('click', (e) => {
-  const btn = e.target.closest('button[data-sheet]');
-  if (!btn || btn.disabled) return;
-  const label = btn.getAttribute('aria-label'); // "Previous sheet" | "Next sheet" | null
-  currentSheet = Number(btn.dataset.sheet);
-  renderGrid();
-  const pager = $('#pager');
-  const target = (label && pager.querySelector(`button[aria-label="${label}"]:not([disabled])`)) ||
-    pager.querySelector('.sheet-no.is-current') ||
-    pager.querySelector('button[data-sheet]:not([disabled])');
-  if (target) target.focus({ preventScroll: true });
-  $('#ballot').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
+// ---------------------------------------------------------------------------
+// Casting
+// ---------------------------------------------------------------------------
 
-$('#celebGrid').addEventListener('click', (e) => {
-  const oval = e.target.closest('.oval');
-  if (oval) return cancelVote(oval.dataset.id);
-  const row = e.target.closest('.brow');
-  if (!row) return;
-  if (e.target.closest('[data-again]')) return cancelVote(row.dataset.id);
-  if (e.target.closest('[data-cert]')) return downloadCertificate(row.dataset.id);
-  if (e.target.closest('[data-share]')) return shareCancel(row.dataset.id, e.target.closest('[data-share]'));
-});
+function wireCastControls() {
+  const nameInput = $('#walletName');
+  if (nameInput) {
+    nameInput.value = wallet.name || '';
+    nameInput.addEventListener('input', () => { wallet.name = nameInput.value.trim().slice(0, 20); saveWallet(); });
+  }
+  $('#castBtn').addEventListener('click', () => {
+    if (wallet.cast) return openReceipt();
+    castVote();
+  });
+  $('#castClose').addEventListener('click', closeReceipt);
+  $('#castVeil').addEventListener('click', (e) => { if (e.target === $('#castVeil')) closeReceipt(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#castVeil').hidden) closeReceipt(); });
+  $('#certBtn').addEventListener('click', downloadCertificate);
+  $('#shareBtn').addEventListener('click', (e) => shareCast(e.currentTarget));
+  $('#spendState').addEventListener('change', (e) => {
+    const v = e.target.value;
+    $('#registerLink').href = v ? `https://vote.gov/register/${v.toLowerCase()}` : 'https://vote.gov';
+    if (v) localStorage.setItem('ctv-spend-state', v);
+  });
+}
 
-async function cancelVote(id) {
-  const celeb = ROSTER.find((c) => c.id === id);
-  const row = document.querySelector(`.brow[data-id="${id}"]`);
-  if (!celeb || !row) return;
+async function castVote() {
+  if (placedChips() === 0) return;
+  const allocations = {};
+  for (const [id, chips] of Object.entries(wallet.alloc)) allocations[id] = chips * CHIP_USD;
 
-  const times = (myStamps.get(id) || 0) + 1;
-  myStamps.set(id, times);
-
-  row.querySelector('.oval').classList.add('is-filled');
-  slamStamp(row, times);
-  if (navigator.vibrate) navigator.vibrate(25);
-
-  const name = $('#filedBy').value.trim();
-  if (name) localStorage.setItem('ctv-name', name);
-
-  // optimistic count bump; corrected by server response
-  const countEl = row.querySelector('[data-count]');
-  celeb.count += 1;
-  countEl.textContent = fmt(celeb.count);
-  lastStatsTotal += 1;
-  countTo($('#statTotal'), lastStatsTotal, true);
-  countTo($('#indexTotal'), lastStatsTotal, true);
-
-  const actions = row.querySelector('.brow-actions');
-  actions.hidden = false;
-  const status = row.querySelector('[data-status]');
-  status.textContent = stampStatusText(times);
-
+  const btn = $('#castBtn');
+  btn.disabled = true; btn.textContent = 'Casting…';
   try {
-    const res = await fetch('/api/cancel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, name, times: 1 }),
+    const res = await fetch('/api/cast', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ allocations, name: wallet.name }),
     });
     const out = await res.json();
-    if (res.ok) {
-      celeb.count = out.count;
-      countEl.textContent = fmt(celeb.count);
-    }
-  } catch (_) { /* the stamp is the experience; counts sync next refresh */ }
+    if (!res.ok) { btn.disabled = false; renderWalletUI(); alert(out.error || 'Could not cast.'); return; }
+    // fold into local aggregate so the boards/rows reflect it immediately
+    for (const [id, newTotal] of Object.entries(out.applied)) { const t = BY_ID.get(id); if (t) t.pledged = newTotal; }
+  } catch (_) { /* offline: still let them feel the cast locally */ }
+
+  wallet.cast = true; saveWallet();
+  renderGrid(); renderWalletUI();
+  api('/api/stats').then((s) => renderStats(s, true)).catch(() => {});
+  openReceipt(true);
 }
 
-function slamStamp(row, times) {
-  const imp = document.createElement('span');
-  imp.className = 'stamp-impression';
-  imp.textContent = 'CANCELED';
-  imp.style.setProperty('--rot', (Math.random() * 14 - 7).toFixed(1) + 'deg');
-  if (times === 1) {
-    imp.style.right = '10px';
-    imp.style.top = '12px';
-  } else {
-    imp.style.left = (8 + Math.random() * 50) + '%';
-    imp.style.top = (10 + Math.random() * 60) + '%';
-    imp.style.fontSize = (0.8 + Math.random() * 0.5) + 'rem';
-  }
-  row.appendChild(imp);
-  const imps = row.querySelectorAll('.stamp-impression');
-  if (imps.length > 9) imps[0].remove();
+function allocationRows() {
+  return Object.entries(wallet.alloc)
+    .map(([id, chips]) => ({ t: BY_ID.get(id), usdv: chips * CHIP_USD }))
+    .filter((r) => r.t)
+    .sort((a, b) => b.usdv - a.usdv);
 }
+
+function openReceipt(fresh) {
+  const rows = allocationRows();
+  const total = rows.reduce((s, r) => s + r.usdv, 0);
+  $('#castReceipt').innerHTML = rows.map((r) =>
+    `<li><span class="cr-name">${escapeHtml(r.t.name)}</span><span class="cr-dots"></span><span class="cr-amt">${usd(r.usdv)}</span></li>`
+  ).join('') + `<li class="cr-total"><span class="cr-name">Total influence canceled</span><span class="cr-dots"></span><span class="cr-amt">${usd(total)}</span></li>`;
+  const saved = localStorage.getItem('ctv-spend-state');
+  if (saved) { $('#spendState').value = saved; $('#registerLink').href = `https://vote.gov/register/${saved.toLowerCase()}`; }
+  const veil = $('#castVeil');
+  veil.hidden = false;
+  veil.classList.toggle('is-fresh', !!fresh);
+  document.body.style.overflow = 'hidden';
+  $('#castClose').focus();
+}
+function closeReceipt() { $('#castVeil').hidden = true; document.body.style.overflow = ''; }
 
 // ---------------------------------------------------------------------------
 // Returns tables
@@ -388,31 +482,28 @@ async function renderBoard() {
   try {
     if (boardMode === 'leader') {
       const { leaderboard } = await api('/api/leaderboard?limit=10');
-      drawBoard(list, leaderboard, (r) => fmt(r.count));
+      drawBoard(list, leaderboard, (r) => usd(r.pledged), (r) => r.pledged);
     } else {
       const { trending } = await api('/api/trending?limit=10');
       if (!trending.length) {
-        list.innerHTML = '<li><span class="rank">—</span><span class="who"><span class="nm">A quiet day at the bureau</span><span class="st">No cancellations in 24h</span></span><span class="track"></span><span class="ct"></span></li>';
+        list.innerHTML = '<li><span class="rank">—</span><span class="who"><span class="nm">A quiet day at the arithmetic desk</span><span class="st">No pledges in 24h</span></span><span class="track"></span><span class="ct"></span></li>';
         return;
       }
-      drawBoard(list, trending, (r) => `+${fmt(r.dayCount)}`);
+      drawBoard(list, trending, (r) => `+${usd(r.dayUsd)}`, (r) => r.dayUsd);
     }
-  } catch (_) { /* leave old board */ }
+  } catch (_) { /* keep prior board */ }
 }
 
-function drawBoard(list, rows, ctFn) {
-  const max = Math.max(...rows.map((r) => r.dayCount ?? r.count), 1);
+function drawBoard(list, rows, ctFn, valFn) {
+  const max = Math.max(...rows.map(valFn), 1);
   list.innerHTML = rows.map((r, i) => `
     <li>
       <span class="rank">${String(i + 1).padStart(2, '0')}</span>
-      <span class="who">
-        <span class="nm">${escapeHtml(r.name)}</span>
-        <span class="st">${STATES[r.state] || r.state} · ${r.tag}</span>
-      </span>
-      <span class="track"><span class="bar" style="width:${(((r.dayCount ?? r.count) / max) * 100).toFixed(1)}%"></span></span>
+      <span class="who"><span class="nm">${escapeHtml(r.name)}</span>
+        <span class="st">${escapeHtml(tagLabel(r.industry))} · ${usd(r.totalUsd)} on the books</span></span>
+      <span class="track"><span class="bar" style="width:${((valFn(r) / max) * 100).toFixed(1)}%"></span></span>
       <span class="ct">${ctFn(r)}</span>
-    </li>
-  `).join('');
+    </li>`).join('');
 }
 
 $('#tabLeader').addEventListener('click', () => setBoard('leader'));
@@ -427,131 +518,138 @@ function setBoard(mode) {
 }
 
 // ---------------------------------------------------------------------------
-// Certificate (1200×630 canvas → PNG)
+// Pager
 // ---------------------------------------------------------------------------
 
-async function drawCertificate(id) {
-  const c = ROSTER.find((r) => r.id === id);
-  const name = $('#filedBy').value.trim() || 'A Registered Grudge-Holder';
+function renderPager(totalSheets) {
+  const pager = $('#pager');
+  const announce = $('#pagerAnnounce');
+  if (totalSheets <= 1) { pager.innerHTML = ''; if (announce) announce.textContent = ''; return; }
+  if (announce) announce.textContent = `Page ${currentSheet} of ${totalSheets}`;
+  const numbers = totalSheets <= 8
+    ? Array.from({ length: totalSheets }, (_, i) =>
+        `<button class="sheet-no${i + 1 === currentSheet ? ' is-current' : ''}" data-sheet="${i + 1}" aria-label="Page ${i + 1}"${i + 1 === currentSheet ? ' aria-current="page"' : ''}>${i + 1}</button>`).join('')
+    : `<span>Page ${currentSheet} of ${totalSheets}</span>`;
+  pager.innerHTML =
+    `<button data-sheet="${currentSheet - 1}" ${currentSheet === 1 ? 'disabled' : ''} aria-label="Previous page">◀</button>
+     ${numbers}
+     <button data-sheet="${currentSheet + 1}" ${currentSheet === totalSheets ? 'disabled' : ''} aria-label="Next page">▶</button>`;
+}
+
+$('#pager').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-sheet]');
+  if (!btn || btn.disabled) return;
+  const label = btn.getAttribute('aria-label');
+  currentSheet = Number(btn.dataset.sheet);
+  renderGrid();
+  const pager = $('#pager');
+  const target = (label && pager.querySelector(`button[aria-label="${label}"]:not([disabled])`)) ||
+    pager.querySelector('.sheet-no.is-current') || pager.querySelector('button[data-sheet]:not([disabled])');
+  if (target) target.focus({ preventScroll: true });
+  $('#ledger').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// ---------------------------------------------------------------------------
+// State picker (in receipt)
+// ---------------------------------------------------------------------------
+
+function buildSpendPicker() {
+  $('#spendState').innerHTML = '<option value="">your state…</option>' +
+    Object.entries(STATES).map(([c, n]) => `<option value="${c}">${n}</option>`).join('');
+}
+
+// ---------------------------------------------------------------------------
+// Certificate of Cancellation (1200×630 canvas → PNG)
+// ---------------------------------------------------------------------------
+
+async function drawCertificate() {
+  const name = (wallet.name || '').trim() || 'A Registered Voter';
   await document.fonts.load('700 44px "Archivo Narrow"');
-  await document.fonts.load('700 20px "Courier Prime"');
+  await document.fonts.load('900 40px "Fraunces"');
+  const rows = allocationRows();
+  const total = rows.reduce((s, r) => s + r.usdv, 0);
 
   const cv = $('#certCanvas');
   const x = cv.getContext('2d');
   const W = cv.width, H = cv.height;
 
-  x.fillStyle = '#f7f4ea';
-  x.fillRect(0, 0, W, H);
-  for (let i = 0; i < 1600; i++) {
-    x.fillStyle = `rgba(23,22,26,${Math.random() * 0.035})`;
-    x.fillRect(Math.random() * W, Math.random() * H, 1.2, 1.2);
+  x.fillStyle = '#f2ead6'; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 1500; i++) { x.fillStyle = `rgba(23,22,26,${Math.random() * 0.03})`; x.fillRect(Math.random() * W, Math.random() * H, 1.2, 1.2); }
+
+  x.fillStyle = '#1c5f42'; x.fillRect(28, 28, W - 56, 74);
+  x.fillStyle = '#f2ead6'; x.textAlign = 'left';
+  x.font = '700 30px "Archivo Narrow", sans-serif';
+  x.fillText('CERTIFICATE OF CANCELLATION — ONE (1) VOTE', 50, 74);
+  x.textAlign = 'right'; x.font = '14px "Courier Prime", monospace';
+  x.fillText('FORM CTC-26 · BUREAU OF BALLOT GRIEVANCES', W - 50, 62);
+
+  x.strokeStyle = '#1c5f42'; x.lineWidth = 2; x.strokeRect(28, 28, W - 56, H - 56);
+  x.strokeStyle = '#17161a'; x.lineWidth = 1; x.strokeRect(40, 116, W - 80, H - 156);
+
+  x.textAlign = 'left'; x.fillStyle = '#55534f'; x.font = '19px "Archivo Narrow", sans-serif';
+  x.fillText('THIS CERTIFIES THAT', 62, 158);
+  x.fillStyle = '#17161a'; x.font = '900 46px "Fraunces", serif';
+  x.fillText(name.toUpperCase(), 62, 204);
+  x.fillStyle = '#55534f'; x.font = '19px "Archivo Narrow", sans-serif';
+  x.fillText('PLEDGED ONE VOTE — WORTH $100 OF INFLUENCE — TO CANCEL THIS CORPORATE MONEY:', 62, 246);
+
+  // allocation table (up to 6 lines)
+  const shown = rows.slice(0, 6);
+  let y = 292;
+  x.font = '700 24px "Archivo Narrow", sans-serif';
+  for (const r of shown) {
+    x.fillStyle = '#17161a'; x.textAlign = 'left';
+    x.fillText(r.t.name.toUpperCase(), 62, y);
+    x.fillStyle = '#1c5f42'; x.textAlign = 'right';
+    x.fillText(usd(r.usdv), W - 62, y);
+    x.strokeStyle = '#cbb98f'; x.lineWidth = 1; x.beginPath(); x.moveTo(62, y + 9); x.lineTo(W - 62, y + 9); x.stroke();
+    y += 40;
   }
+  if (rows.length > 6) { x.fillStyle = '#55534f'; x.textAlign = 'left'; x.font = '18px "Courier Prime", monospace'; x.fillText(`+ ${rows.length - 6} more line items`, 62, y); y += 30; }
 
-  // header bar
-  x.fillStyle = '#17161a';
-  x.fillRect(28, 28, W - 56, 78);
-  x.fillStyle = '#f7f4ea';
-  x.textAlign = 'left';
-  x.font = '700 34px "Archivo Narrow", sans-serif';
-  x.fillText('OFFICIAL CANCELLATION BALLOT — RECEIPT', 52, 78);
-  x.font = '15px "Courier Prime", monospace';
-  x.textAlign = 'right';
-  x.fillText('FORM CTV-26-C · UNOFFICIAL', W - 52, 60);
-  x.fillText('BUREAU OF BALLOT GRIEVANCES', W - 52, 82);
+  x.fillStyle = '#17161a'; x.textAlign = 'left'; x.font = '700 30px "Archivo Narrow", sans-serif';
+  x.fillText('TOTAL CANCELED', 62, y + 10);
+  x.fillStyle = '#1c5f42'; x.textAlign = 'right'; x.fillText(usd(total), W - 62, y + 10);
 
-  // frame
-  x.strokeStyle = '#17161a';
-  x.lineWidth = 1.5;
-  x.strokeRect(28, 28, W - 56, H - 56);
+  x.textAlign = 'center'; x.fillStyle = '#55534f'; x.font = '700 15px "Courier Prime", monospace';
+  x.fillText('SYMBOLIC ONLY · NO REAL MONEY CHANGES HANDS · COUNTS ONLY WHEN YOU ACTUALLY VOTE · VOTE.GOV', W / 2, H - 52);
 
-  x.textAlign = 'left';
-  x.fillStyle = '#55534f';
-  x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText('THIS RECEIPT CERTIFIES THAT', 72, 168);
-
-  x.fillStyle = '#17161a';
-  x.font = '700 52px "Archivo Narrow", sans-serif';
-  x.fillText(name.toUpperCase(), 72, 224);
-  x.strokeStyle = '#a9bccd';
-  x.lineWidth = 1.5;
-  x.beginPath(); x.moveTo(72, 238); x.lineTo(W - 320, 238); x.stroke();
-
-  x.fillStyle = '#55534f';
-  x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText('HAS PLEDGED TO PERSONALLY CANCEL OUT THE ONE (1) VOTE OF', 72, 286);
-
-  x.fillStyle = '#17161a';
-  x.font = '700 60px "Archivo Narrow", sans-serif';
-  x.fillText(c.name.toUpperCase(), 72, 352);
-  x.beginPath(); x.moveTo(72, 368); x.lineTo(W - 320, 368); x.stroke();
-
-  x.fillStyle = '#55534f';
-  x.font = '20px "Archivo Narrow", sans-serif';
-  x.fillText(`IN THE STATE OF ${STATES[c.state].toUpperCase()}, BY THE RADICAL ACT OF ALSO VOTING.`, 72, 414);
-
-  // filled oval exhibit
-  x.strokeStyle = '#17161a';
-  x.lineWidth = 3;
-  x.beginPath(); x.ellipse(96, 470, 26, 13, 0, 0, Math.PI * 2); x.stroke();
-  x.fillStyle = '#17161a';
-  x.beginPath(); x.ellipse(96, 470, 20, 8, -0.04, 0, Math.PI * 2); x.fill();
-  x.fillStyle = '#55534f';
-  x.font = '16px "Courier Prime", monospace';
-  x.fillText('EXHIBIT A: THE OVAL, FILLED. PRACTICE COMPLETE.', 140, 476);
-
-  x.font = '700 17px "Courier Prime", monospace';
-  x.fillStyle = '#17161a';
-  x.fillText('STATUS: PENDING UNTIL BALLOT CAST — REGISTER AT VOTE.GOV', 72, 540);
-  x.font = '15px "Courier Prime", monospace';
-  x.fillStyle = '#55534f';
-  x.fillText(`FILED ${new Date().toLocaleDateString('en-US')} · CANCELTHEIRVOTE`, 72, 566);
-
-  // stamp
-  x.save();
-  x.translate(W - 210, H - 190);
-  x.rotate(-0.14);
-  x.strokeStyle = 'rgba(181,39,29,0.85)';
-  x.lineWidth = 5;
-  x.strokeRect(-135, -40, 270, 76);
-  x.fillStyle = 'rgba(181,39,29,0.85)';
-  x.textAlign = 'center';
-  x.font = '700 42px "Courier Prime", monospace';
-  x.fillText('CANCELED', 0, 14);
-  x.restore();
+  x.save(); x.translate(W - 195, 200); x.rotate(-0.14);
+  x.strokeStyle = 'rgba(28,95,66,0.85)'; x.lineWidth = 5; x.strokeRect(-120, -34, 240, 66);
+  x.fillStyle = 'rgba(28,95,66,0.85)'; x.textAlign = 'center'; x.font = '700 34px "Courier Prime", monospace';
+  x.fillText('CAST', 0, 12); x.restore();
 
   return cv;
 }
 
-async function downloadCertificate(id) {
-  const cv = await drawCertificate(id);
+async function downloadCertificate() {
+  const cv = await drawCertificate();
   const a = document.createElement('a');
-  a.download = `canceled-${id}.png`;
-  a.href = cv.toDataURL('image/png');
-  a.click();
+  a.download = 'my-100-dollar-vote.png';
+  a.href = cv.toDataURL('image/png'); a.click();
 }
 
-async function shareCancel(id, btn) {
-  const c = ROSTER.find((r) => r.id === id);
-  const text = `I just pledged to cancel out ${c.name}'s vote in ${STATES[c.state]} — by voting. Their ballot has been canceled ${fmt(c.count)} times (it was only worth 1).`;
+async function shareCast(btn) {
+  const rows = allocationRows();
+  const top = rows[0];
+  const text = top
+    ? `I aimed my $100 vote at corporate money in politics — ${usd(top.usdv)} against ${top.t.name}${rows.length > 1 ? ` and ${rows.length - 1} more` : ''}. It's a metaphor (no real money), but the vote is real. Yours is worth $100 of their influence too — cancel some, then vote.`
+    : `Your vote is worth $100 of the corporate money in politics. It's a metaphor — no real money — but the vote is real. Cancel some, then vote.`;
   try {
-    const cv = await drawCertificate(id);
+    const cv = await drawCertificate();
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
-    const file = new File([blob], 'certificate.png', { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ text, files: [file] });
-      return;
-    }
+    const file = new File([blob], 'my-100-dollar-vote.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ text, files: [file] }); return; }
     if (navigator.share) { await navigator.share({ text, url: location.origin }); return; }
-  } catch (_) { /* fall through to clipboard */ }
+  } catch (_) { /* fall through */ }
   try {
     await navigator.clipboard.writeText(text + ' ' + location.origin);
-    const old = btn.textContent;
-    btn.textContent = 'Copied!';
+    const old = btn.textContent; btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = old; }, 1600);
   } catch (_) { /* no-op */ }
 }
 
 boot().catch((err) => {
   console.error(err);
-  $('#celebGrid').innerHTML = '<p class="empty-note">The bureau is experiencing technical difficulties. Your grievance persists.</p>';
+  $('#ledgerGrid').innerHTML = '<p class="empty-note">The arithmetic desk is having technical difficulties. The math, regrettably, is fine.</p>';
 });

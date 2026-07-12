@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a sticky section-index bar, a top-5 returns snapshot above the ballot, and category/search filtering with 12-per-sheet pagination to the Cancel Their Vote ballot document.
+> **Note (2026-07-11):** written during the celebrity-ballot era; the project has since been renamed **Cancel Their Cash** and pivoted to corporate-PAC targets. Kept as a historical record.
+
+**Goal:** Add a sticky section-index bar, a top-5 returns snapshot above the ballot, and category/search filtering with 12-per-sheet pagination to the ballot document.
 
 **Architecture:** All changes are client-side in the three frontend files (`public/index.html`, `public/styles.css`, `public/app.js`). Filtering/pagination operate on the already-fetched 153-row roster in memory. No server or API changes. The site is a zero-dependency vanilla-JS document — there is no test framework; each task verifies through the running dev server (`node server.js`, port 4680) in a browser, with exact checks listed. Spec: `docs/superpowers/specs/2026-07-09-layout-redesign-design.md`.
 

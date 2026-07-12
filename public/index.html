@@ -3,165 +3,187 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cancel Their Vote — Official Cancellation Ballot</title>
-<meta name="description" content="Pledge to cancel out a famous person's vote in your state. Then actually go vote, or your cancellation is just a wish.">
-<meta property="og:title" content="Cancel Their Vote">
-<meta property="og:description" content="Fill in the oval. Cancel a famous ballot. Legally. By voting.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f7f4ea'/%3E%3Cellipse cx='50' cy='50' rx='34' ry='20' fill='none' stroke='%2317161a' stroke-width='8'/%3E%3Cellipse cx='50' cy='50' rx='20' ry='10' fill='%23b5271d'/%3E%3C/svg%3E">
+<title>Cancel Their Cash — Your vote is worth $100</title>
+<meta name="description" content="Corporate PACs spend millions on elections. Your vote is worth $100 of it, and it can't be bought. Place your ten $10 chips against the money — then actually go vote.">
+<meta property="og:title" content="Cancel Their Cash — Your vote is worth $100">
+<meta property="og:description" content="One $100 vote, ten $10 chips. Aim it at the corporate money in politics. It's symbolic — no real money changes hands.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f2ead6'/%3E%3Ccircle cx='50' cy='50' r='34' fill='none' stroke='%231d6b47' stroke-width='7'/%3E%3Ctext x='50' y='63' font-size='34' font-family='Georgia' text-anchor='middle' fill='%231d6b47'%3E%24%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Fraunces:opsz,wght@9..144,600;9..144,900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
-<main class="page">
+<main class="page" id="top">
 
   <header class="bhead">
     <div class="bhead-title">
-      <h1>Official Cancellation Ballot</h1>
-      <p class="bhead-sub">General Midterm Election · Tuesday, November 3, 2026</p>
+      <span class="bhead-seal" aria-hidden="true">✶</span>
+      <div>
+        <h1>Cancel Their Cash</h1>
+        <p class="bhead-sub">Bureau of Ballot Grievances · Arithmetic Desk</p>
+      </div>
     </div>
     <div class="bhead-meta">
-      <span>Form CTV-26</span>
-      <span>Bureau of Ballot Grievances</span>
-      <span>Unofficial · Non-binding · Petty</span>
+      <span>Midterms · Nov 3, 2026</span>
+      <span>Unofficial &amp; mathematically petty</span>
     </div>
   </header>
 
-  <div class="wire" aria-label="Recent cancellations">
-    <span class="wire-label">CANCELLATION WIRE</span>
+  <div class="wire" aria-label="Recent pledges">
+    <span class="wire-label">THE WIRE</span>
     <div class="wire-clip"><div class="wire-track" id="tickerTrack"></div></div>
   </div>
 
   <nav class="index-bar" id="indexBar" aria-label="Section index">
     <div class="index-links">
-      <a href="#ballot">Ballot</a>
+      <a href="#top">Home</a>
+      <a href="#ledger">The Money</a>
       <a href="#returns">Returns</a>
-      <a href="#methodology">Methodology</a>
-      <a href="#fine-print">Fine print</a>
+      <a href="#methodology">Why $100</a>
     </div>
-    <span class="index-total"><strong id="indexTotal">0</strong>&nbsp;filed</span>
+    <span class="index-total"><strong id="indexTotal">$0</strong>&nbsp;canceled</span>
   </nav>
 
-  <div class="specimen" aria-hidden="true">Specimen · Not an actual ballot</div>
+  <!-- ============================ HERO ============================ -->
+  <section class="hero" aria-labelledby="heroTitle">
+    <h2 class="hero-title" id="heroTitle">Your vote is only<br> worth <span class="hero-dollar">$100</span>.</h2>
+    <p class="hero-sub">At least, that's all the corporate money in politics acts like it is.</p>
+    <p class="hero-lead">So use it first. You hold one <strong>$100 vote</strong> — ten $10 chips.
+    Aim them at the corporate PACs whose influence you most want to cancel. Then make it
+    real at the ballot box, the one place their money can't follow.</p>
+    <p class="hero-note">It's a metaphor, not a transaction — no real money, and nobody is paid.
+    The dollars only measure how much corporate influence your vote can cancel out.</p>
 
-  <section class="intake">
-    <div class="instructions">
-      <h2>Instructions to Cancelers</h2>
-      <ol>
-        <li>Every ballot in America counts exactly once — famous, rich, loud, or yours. To
-        &ldquo;cancel&rdquo; a vote is to show up with the opposite one. That is the entire
-        mechanism. It is also the law of arithmetic.</li>
-        <li>To cancel, completely fill in the oval <span class="oval-demo" aria-hidden="true"></span>
-        beside the name. Use ink. Spite is an acceptable ink.</li>
-        <li>A famous vote can only be canceled once. Additional cancellations are accepted
-        and filed under <em>Spite, Surplus</em>.</li>
-        <li>Your cancellation remains <strong>PENDING</strong> until you cast an actual
-        ballot. A cancellation without a ballot is a birthday wish.</li>
-      </ol>
+    <div class="hero-wallet" aria-label="Your chips">
+      <div class="hw-chips" id="heroChips"></div>
+      <p class="hw-status"><strong id="heroRemaining">$100</strong> left to place</p>
     </div>
 
-    <div class="intake-form">
-      <div class="fill-line">
-        <label for="filedBy">Filed by <span class="opt">(first name, optional)</span></label>
-        <input id="filedBy" type="text" maxlength="20" placeholder="Anonymous Voter" autocomplete="off">
-      </div>
-      <dl class="tallies">
-        <div class="tally"><dt>Cancellations on file</dt><dd id="statTotal">0</dd></div>
-        <div class="tally"><dt>Most-canceled American</dt><dd id="statTop" class="tally-name">—</dd></div>
-        <div class="tally"><dt>States covered</dt><dd id="statStates">0</dd></div>
-        <div class="tally"><dt>Votes literally changed</dt><dd>0<span class="tally-foot">unless you vote</span></dd></div>
-      </dl>
+    <div class="hero-cta">
+      <a class="btn btn-go" href="#ledger">Place your chips ↓</a>
+      <a class="btn btn-ghost" href="#methodology">Why is it $100?</a>
     </div>
+
+    <p class="hero-live" id="heroLive">Loading the ledger…</p>
   </section>
 
-  <section class="snapshot" aria-label="Returns snapshot">
-    <div class="snap-head">
-      <h2>Unofficial Returns — Snapshot</h2>
-      <a href="#returns">Full tables →</a>
-    </div>
-    <ol class="snap-list" id="snapList"></ol>
-    <p class="snap-trend" id="snapTrend" hidden></p>
-  </section>
-
-  <div class="part-bar" id="ballot" aria-live="polite">Part 1 — Cancelable residents on file</div>
+  <!-- ========================== THE LEDGER ========================== -->
+  <div class="part-bar" id="ledger" aria-live="polite">The Money</div>
   <div class="filter-row">
     <div class="f-field">
-      <label for="statePick">State</label>
-      <select id="statePick" aria-label="Select your state"></select>
-    </div>
-    <div class="f-field">
-      <label for="tagPick">Category</label>
-      <select id="tagPick" aria-label="Filter by category"></select>
+      <label for="tagPick">Industry</label>
+      <select id="tagPick" aria-label="Filter by industry"></select>
     </div>
     <div class="f-field f-search">
       <label for="docketSearch">Search</label>
-      <input id="docketSearch" type="search" placeholder="SEARCH THE DOCKET…" autocomplete="off" aria-label="Search names">
+      <input id="docketSearch" type="search" placeholder="SEARCH THE MONEY…" autocomplete="off" aria-label="Search PAC names">
     </div>
-    <p class="f-note">Reported home states. We don't know how anyone votes. Neither do you.</p>
+    <p class="f-note">2024-cycle federal totals, per FEC filings. Rounded to the nearest $100,000.</p>
   </div>
+  <div class="rollup" id="rollup" hidden></div>
 
-  <section class="ballot-grid" id="celebGrid"></section>
-  <nav class="pager" id="pager" aria-label="Ballot sheets"></nav>
+  <section class="ledger-grid" id="ledgerGrid"></section>
+  <nav class="pager" id="pager" aria-label="Ledger pages"></nav>
   <p class="vh" id="pagerAnnounce" aria-live="polite"></p>
 
-  <div class="part-bar" id="returns">Part 2 — Unofficial returns <span class="part-bar-right">51 of 51 states reporting · 0% of anything legally affected</span></div>
-
+  <!-- ========================== RETURNS ========================== -->
+  <div class="part-bar" id="returns">Returns — where the money's being canceled <span class="part-bar-right">Live · at the official $100 rate</span></div>
   <section class="returns">
     <div class="table-tabs" role="tablist">
-      <button class="ttab is-active" id="tabLeader" role="tab" aria-selected="true">Table A · Most canceled, all-time</button>
-      <button class="ttab" id="tabTrend" role="tab" aria-selected="false">Table B · Trending, last 24 hours</button>
+      <button class="ttab is-active" id="tabLeader" role="tab" aria-selected="true">Most canceled</button>
+      <button class="ttab" id="tabTrend" role="tab" aria-selected="false">Trending · 24h</button>
     </div>
     <ol class="rtable" id="boardList"></ol>
   </section>
 
-  <div class="part-bar" id="methodology">Part 3 — Notes on methodology</div>
-
+  <!-- ========================= METHODOLOGY ========================= -->
+  <div class="part-bar" id="methodology">Why a vote is worth $100</div>
+  <section class="exhibit" aria-label="The exchange rate math">
+    <div class="exhibit-math">
+      <span class="em-line">$15,900,000,000 <span class="em-note">spent on the 2024 federal elections¹</span></span>
+      <span class="em-line">÷ 155,238,302 <span class="em-note">ballots cast</span></span>
+      <span class="em-line em-result">= $102.43 per vote</span>
+    </div>
+    <p class="exhibit-rate">Certified at <strong>1 vote = $100</strong>. <span class="exhibit-foot">A figure of speech — the Bureau rounds down.</span></p>
+  </section>
   <section class="notes">
     <div class="note">
-      <h3>¹ On &ldquo;canceling&rdquo;</h3>
-      <p>Votes don't cancel; they count, one each. But if you were going to sit this
-      one out and someone on this form wasn't, they were about to out-vote you 1&ndash;0.
-      Voting makes it 1&ndash;1. That's the whole bit.</p>
+      <h3>The rate</h3>
+      <p>¹ Source: <a href="https://www.opensecrets.org" target="_blank" rel="noopener">OpenSecrets</a>,
+      2024 federal cycle. Regional rates exist too — the 2022 midterm discount (~$79), the
+      Georgia-runoff premium (~$111) — but the Bureau rounds down.</p>
     </div>
     <div class="note">
-      <h3>² On the surplus</h3>
-      <p>When 48,000 people cancel one billionaire's single vote, 47,999 cancellations
-      are surplus. The Bureau redirects surplus spite toward the only thing it's good
-      for: getting you to the polls.</p>
+      <h3>The allegation</h3>
+      <p>We don't allege corruption. We allege <em>arithmetic</em>. Every figure is a public FEC
+      record of lawful contributions, rounded to the nearest $100,000. They disclosed; we divided.</p>
     </div>
     <div class="note">
-      <h3>³ On states</h3>
-      <p>Midterms are state business — Senate seats, governors, the House. Your ballot
-      only shares races with people registered in <em>your</em> state. That's why the
-      form asks. It's the only personal question on it.</p>
+      <h3>Do your homework</h3>
+      <p>This site never tells you whom to vote for. Who takes corporate money is your call — start
+      with the <a href="https://integrityindex.us" target="_blank" rel="noopener">Integrity Index</a>
+      and <a href="https://www.opensecrets.org" target="_blank" rel="noopener">OpenSecrets</a>.
+      Neither is affiliated with this site. Yet.</p>
     </div>
     <div class="note">
-      <h3>⁴ On follow-through</h3>
-      <p>Registration takes two minutes at
-      <a href="https://vote.gov" target="_blank" rel="noopener">vote.gov</a>. Make a plan:
-      when, where, how you're getting there. Voters with a plan actually go. That's the
-      part of this that isn't a joke.</p>
+      <h3>The catch</h3>
+      <p>A pledge here is a wish until you vote. Register in two minutes at
+      <a href="https://vote.gov" target="_blank" rel="noopener">vote.gov</a> and make a plan.
+      Voters with a plan actually show up. That part isn't a joke.</p>
     </div>
   </section>
 
   <footer class="fine-print" id="fine-print">
-    <p><strong>The fine print.</strong> This is satire with a turnout problem to solve. No person
-    named on this form endorses, sponsors, or has anything to do with it. Ballots are secret; any
-    guess about how anyone votes is speculation you brought with you. &ldquo;Home states&rdquo; are
-    based on public reporting and may be wrong. No prizes, no rewards, no merch — just arithmetic.
-    We store a counter and, if you offer one, a first name. Nothing else.</p>
+    <p><strong>The fine print.</strong> Satire with a turnout problem to solve. Company and PAC names
+    appear solely for commentary on public campaign-finance records; no company endorses or sponsors
+    this site, and no logos or trademarks are used. Figures are lawful, disclosed FEC contributions,
+    rounded, as of the date in our data file — we allege arithmetic, not crimes. Votes don't literally
+    cancel dollars; they do something better: they count. <strong>No real money is involved anywhere on
+    this site — nothing is bought, sold, paid, deposited, or received, and the &ldquo;$100&rdquo; is a
+    figure of speech for a vote's power, not a payment.</strong> No prizes, no rewards, no merch. We store
+    a counter and, if you offer one, a first name. Your chips live in your own browser. Nothing else.</p>
     <p>
       <a href="/terms.html">Full terms &amp; disclaimers</a> ·
-      <a href="https://vote.gov" target="_blank" rel="noopener">Register to vote — vote.gov</a> ·
-      <a href="https://www.eac.gov/voters" target="_blank" rel="noopener">Election information — EAC</a>
+      <a href="https://vote.gov" target="_blank" rel="noopener">Register — vote.gov</a> ·
+      <a href="https://www.eac.gov/voters" target="_blank" rel="noopener">Election info — EAC</a>
     </p>
   </footer>
 
-  <div class="bfoot">End of ballot — now go get a real one · vote.gov</div>
+  <div class="bfoot">Your $100 only counts when you vote · vote.gov</div>
 
 </main>
+
+<!-- ===================== STICKY WALLET BAR ===================== -->
+<div class="wallet-bar" id="walletBar" hidden>
+  <div class="wb-chips" id="walletChips" aria-hidden="true"></div>
+  <p class="wb-msg" id="walletMsg">$100 to place</p>
+  <input class="wb-name" id="walletName" type="text" maxlength="20" placeholder="Your first name (optional)" autocomplete="off" aria-label="Your first name, optional">
+  <button class="btn btn-cast" id="castBtn" type="button" disabled>Cast my vote</button>
+</div>
+
+<!-- ===================== CAST RECEIPT MODAL ===================== -->
+<div class="veil" id="castVeil" hidden>
+  <div class="cast-panel" role="dialog" aria-modal="true" aria-labelledby="castHeading">
+    <div class="cast-stamp" aria-hidden="true">Cast</div>
+    <p class="cast-kicker">Certificate of Cancellation · Form CTC-26</p>
+    <h2 id="castHeading">Your $100 vote is in.</h2>
+    <ol class="cast-receipt" id="castReceipt"></ol>
+    <p class="cast-pending"><strong>Status: pending.</strong> No money changed hands — the dollars just
+    measure influence, and your ballot is the only real thing here. This counts the moment you actually vote.</p>
+    <div class="cast-where">
+      <label for="spendState">Where will you vote?</label>
+      <select id="spendState" aria-label="Pick your state"></select>
+    </div>
+    <div class="cast-actions">
+      <a class="btn btn-go" id="registerLink" href="https://vote.gov" target="_blank" rel="noopener">Register / make a plan →</a>
+      <button class="btn btn-ghost" id="certBtn" type="button">Download certificate</button>
+      <button class="btn btn-ghost" id="shareBtn" type="button">Share</button>
+    </div>
+    <button class="cast-close" id="castClose" type="button">Close · keep browsing the ledger</button>
+  </div>
+</div>
 
 <canvas id="certCanvas" width="1200" height="630" hidden></canvas>
 <script src="/app.js"></script>

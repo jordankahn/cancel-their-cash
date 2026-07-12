@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 /**
- * Cancel Their Vote — zero-dependency Node server.
+ * Cancel Their Vote — zero-dependency Node server (chip-allocation edition).
  *
  * Serves the static frontend from ./public and a small JSON API backed by
  * a write-through JSON file (./data/state.json). No accounts, no cookies,
- * no personal data beyond an optional first name on each pledge.
+ * no personal data beyond an optional first name on each cast.
+ *
+ * Targets are corporate PACs (./data/pacs.json). Each voter gets one $100
+ * vote, split into ten $10 chips, and allocates it across targets in the
+ * browser. Casting posts the final allocation here; the server only stores
+ * DOLLARS pledged per target plus a rolling event log for the wire/boards.
  *
  *   PORT=4680 node server.js
  *   DEMO_SEED=0 node server.js   # start with zeroed counters (production)
@@ -22,11 +27,15 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 
-const CELEBS = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'celebrities.json'), 'utf8'));
-const CELEB_BY_ID = new Map(CELEBS.map((c) => [c.id, c]));
+const PACS = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'pacs.json'), 'utf8'));
+const TARGETS = PACS.targets;
+const TARGET_BY_ID = new Map(TARGETS.map((t) => [t.id, t]));
+
+const BUDGET_USD = 100;   // one vote
+const CHIP_USD = 10;      // ten chips
 
 // ---------------------------------------------------------------------------
-// State: counts per celeb + a rolling event log (for trending & the live feed)
+// State: dollars pledged per target + a rolling event log (wire & trending)
 // ---------------------------------------------------------------------------
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -37,46 +46,60 @@ let state = loadState();
 function loadState() {
   try {
     const raw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    if (raw && raw.counts) return raw;
+    // accept only state that references known targets AND the dollar schema
+    if (raw && raw.counts && raw.schema === 'usd' &&
+        Object.keys(raw.counts).some((id) => TARGET_BY_ID.has(id))) {
+      return raw;
+    }
   } catch (_) { /* first run */ }
-  return DEMO_SEED ? seedDemoState() : { counts: {}, events: [] };
+  return DEMO_SEED ? seedDemoState() : { schema: 'usd', counts: {}, events: [] };
 }
 
-// Deterministic pseudo-random demo data so the leaderboard/trending/feed have
-// life in them before real traffic exists. Disabled with DEMO_SEED=0.
+// Deterministic pseudo-random demo data so the boards and wire have life in
+// them before real traffic exists. Disabled with DEMO_SEED=0. Counts are
+// DOLLARS, always $10 multiples.
 function seedDemoState() {
   const counts = {};
   const events = [];
   const names = ['Dana', 'Marcus', 'Priya', 'Jo', 'Tyler', 'Elena', 'Sam', 'Keisha',
     'Brett', 'Maria', 'Colin', 'Ava', 'Hank', 'Lucia', 'Devon', 'Rosa', 'Kyle',
     'Nia', 'Walt', 'June', 'Otis', 'Faye', 'Gus', 'Isla', ''];
-  let h = 2463534242;
+  let h = 88675123;
   const rand = () => {
     // xorshift32 — deterministic across restarts
     h ^= h << 13; h ^= h >>> 17; h ^= h << 5; h >>>= 0;
     return h / 4294967296;
   };
+  const hot = new Set(['fairshake', 'koch-industries', 'exxonmobil', 'pfizer', 'comcast',
+    'unitedhealth', 'amazon', 'boeing', 'goldman-sachs', 'altria']);
+  const overdrawn = new Set(['apple', 'coinbase']); // small totals → visible OVERDRAWN flip
+  const toChips = (usdVal) => Math.round(usdVal / CHIP_USD) * CHIP_USD; // snap to $10
   const now = Date.now();
-  for (const c of CELEBS) {
-    // Fame-ish weight: politicians and big names attract more cancellations
-    const base = 40 + Math.floor(rand() * 400);
-    const boost = ['elon-musk', 'donald-trump', 'taylor-swift', 'joe-rogan', 'aoc',
-      'ted-cruz', 'oprah-winfrey', 'lebron-james', 'marjorie-taylor-greene',
-      'bernie-sanders', 'kanye-west', 'mark-zuckerberg'].includes(c.id) ? 6 + rand() * 18 : 1;
-    counts[c.id] = Math.floor(base * boost);
-    // A few recent events per celeb so trending has a 24h signal
-    const recent = Math.floor(rand() * rand() * 30 * (boost > 1 ? 4 : 1));
+  for (const t of TARGETS) {
+    let dollars;
+    if (overdrawn.has(t.id)) {
+      // comfortably past the PAC's own total, but not enough to top the board
+      dollars = Math.ceil((t.totalUsd / CHIP_USD) * (1.05 + rand() * 0.35)) * CHIP_USD;
+    } else {
+      // crowd pledges; notorious PACs attract far more. rand*rand biases low
+      // so a handful of leaders emerge naturally. Always a $10 multiple.
+      const scale = hot.has(t.id) ? 620000 : 55000;
+      dollars = toChips(rand() * rand() * scale);
+    }
+    counts[t.id] = dollars;
+    const heat = hot.has(t.id) ? 6 : 1;
+    const recent = Math.floor(rand() * rand() * 40 * (heat > 1 ? 3 : 1));
     for (let i = 0; i < recent; i++) {
       events.push({
-        id: c.id,
+        id: t.id,
         n: names[Math.floor(rand() * names.length)],
         t: now - Math.floor(rand() * DAY_MS),
-        k: Math.ceil(rand() * 3),
+        usd: (1 + Math.floor(rand() * 5)) * CHIP_USD,
       });
     }
   }
   events.sort((a, b) => a.t - b.t);
-  return { counts, events, demo: true };
+  return { schema: 'usd', counts, events, demo: true };
 }
 
 let saveTimer = null;
@@ -91,7 +114,7 @@ function scheduleSave() {
 }
 
 // ---------------------------------------------------------------------------
-// Tiny per-IP rate limit: 30 cancel posts/minute is plenty for a human
+// Tiny per-IP rate limit: 20 casts/minute is plenty for a human
 // ---------------------------------------------------------------------------
 
 const buckets = new Map();
@@ -101,40 +124,42 @@ function allow(ip) {
   if (!b || now - b.ts > 60_000) { b = { ts: now, n: 0 }; buckets.set(ip, b); }
   b.n += 1;
   if (buckets.size > 10_000) buckets.clear();
-  return b.n <= 30;
+  return b.n <= 20;
 }
 
 // ---------------------------------------------------------------------------
 // API handlers
 // ---------------------------------------------------------------------------
 
-function celebPayload(c) {
-  return { ...c, count: state.counts[c.id] || 0 };
+function targetPayload(t) {
+  return { ...t, pledged: state.counts[t.id] || 0 };
 }
 
 function apiRoster() {
-  return { celebs: CELEBS.map(celebPayload) };
+  return { asOf: PACS.meta.asOf, budgetUsd: BUDGET_USD, chipUsd: CHIP_USD, targets: TARGETS.map(targetPayload) };
 }
 
 function apiStats() {
-  let total = 0;
+  let total = 0;      // dollars pledged across all targets
   let top = null;
-  for (const c of CELEBS) {
-    const n = state.counts[c.id] || 0;
+  let outstanding = 0;
+  for (const t of TARGETS) {
+    const n = state.counts[t.id] || 0;
     total += n;
-    if (!top || n > (state.counts[top.id] || 0)) top = c;
+    outstanding += t.totalUsd;
+    if (!top || n > (state.counts[top.id] || 0)) top = t;
   }
-  const states = new Set(CELEBS.map((c) => c.state));
   return {
     total,
-    top: top ? celebPayload(top) : null,
-    states: states.size,
-    roster: CELEBS.length,
+    votes: Math.round(total / BUDGET_USD),
+    top: top ? targetPayload(top) : null,
+    outstanding,
+    roster: TARGETS.length,
   };
 }
 
 function apiLeaderboard(limit) {
-  const rows = CELEBS.map(celebPayload).sort((a, b) => b.count - a.count);
+  const rows = TARGETS.map(targetPayload).sort((a, b) => b.pledged - a.pledged);
   return { leaderboard: rows.slice(0, limit) };
 }
 
@@ -144,11 +169,11 @@ function apiTrending(limit) {
   for (let i = state.events.length - 1; i >= 0; i--) {
     const e = state.events[i];
     if (e.t < cutoff) break;
-    recent.set(e.id, (recent.get(e.id) || 0) + e.k);
+    recent.set(e.id, (recent.get(e.id) || 0) + e.usd);
   }
   const rows = [...recent.entries()]
-    .map(([id, dayCount]) => ({ ...celebPayload(CELEB_BY_ID.get(id)), dayCount }))
-    .sort((a, b) => b.dayCount - a.dayCount);
+    .map(([id, dayUsd]) => ({ ...targetPayload(TARGET_BY_ID.get(id)), dayUsd }))
+    .sort((a, b) => b.dayUsd - a.dayUsd);
   return { trending: rows.slice(0, limit) };
 }
 
@@ -157,26 +182,45 @@ function apiFeed(limit) {
   const rows = [];
   for (let i = state.events.length - 1; i >= 0 && rows.length < limit; i--) {
     const e = state.events[i];
-    const c = CELEB_BY_ID.get(e.id);
-    if (!c) continue;
-    rows.push({ name: e.n || null, celeb: c.name, state: c.state, agoMs: now - e.t, times: e.k });
+    const t = TARGET_BY_ID.get(e.id);
+    if (!t) continue;
+    rows.push({ name: e.n || null, target: t.name, agoMs: now - e.t, usd: e.usd });
   }
   return { feed: rows };
 }
 
-function apiCancel(body, ip) {
-  if (!allow(ip)) return { status: 429, json: { error: 'Easy there. Even spite has limits. Try again in a minute.' } };
-  const c = CELEB_BY_ID.get(String(body.id || ''));
-  if (!c) return { status: 400, json: { error: 'Unknown target.' } };
-  const times = Math.min(100, Math.max(1, Math.floor(Number(body.times) || 1)));
-  // Optional first name only — strip anything that isn't a short display name
-  let name = String(body.name || '').replace(/[^\p{L}\p{N} '.-]/gu, '').trim().slice(0, 20);
-  state.counts[c.id] = (state.counts[c.id] || 0) + times;
-  state.events.push({ id: c.id, n: name, t: Date.now(), k: times });
+// Cast a whole allocation at once: { allocations: { id: usd, ... }, name }
+function apiCast(body, ip) {
+  if (!allow(ip)) return { status: 429, json: { error: 'Easy there. Even arithmetic has limits. Try again in a minute.' } };
+  const alloc = body && body.allocations;
+  if (!alloc || typeof alloc !== 'object') return { status: 400, json: { error: 'No allocation provided.' } };
+
+  let name = String((body && body.name) || '').replace(/[^\p{L}\p{N} '.-]/gu, '').trim().slice(0, 20);
+  const clean = [];
+  let total = 0;
+  for (const [id, rawUsd] of Object.entries(alloc)) {
+    const t = TARGET_BY_ID.get(id);
+    if (!t) continue;
+    let usd = Math.floor(Number(rawUsd) || 0);
+    usd = Math.round(usd / CHIP_USD) * CHIP_USD; // snap to chip
+    if (usd <= 0) continue;
+    clean.push([id, usd]);
+    total += usd;
+  }
+  if (!clean.length) return { status: 400, json: { error: 'Place at least one chip first.' } };
+  if (total > BUDGET_USD) return { status: 400, json: { error: 'That exceeds one $100 vote.' } };
+
+  const now = Date.now();
+  for (const [id, usd] of clean) {
+    state.counts[id] = (state.counts[id] || 0) + usd;
+    state.events.push({ id, n: name, t: now, usd });
+  }
   if (state.events.length > MAX_EVENTS) state.events.splice(0, state.events.length - MAX_EVENTS);
   scheduleSave();
-  const count = state.counts[c.id];
-  return { status: 200, json: { celeb: celebPayload(c), count, surplus: Math.max(0, count - 1) } };
+
+  const applied = {};
+  for (const [id, usd] of clean) applied[id] = state.counts[id];
+  return { status: 200, json: { ok: true, total, applied } };
 }
 
 // ---------------------------------------------------------------------------
@@ -238,16 +282,16 @@ const server = http.createServer((req, res) => {
       if (p === '/api/feed') return sendJson(res, 200, apiFeed(Math.min(limit, 30)));
       return sendJson(res, 404, { error: 'No such endpoint.' });
     }
-    if (req.method === 'POST' && p === '/api/cancel') {
+    if (req.method === 'POST' && p === '/api/cast') {
       let raw = '';
       req.on('data', (chunk) => {
         raw += chunk;
-        if (raw.length > 2048) req.destroy();
+        if (raw.length > 4096) req.destroy();
       });
       req.on('end', () => {
         let body = {};
         try { body = JSON.parse(raw || '{}'); } catch (_) { /* fall through */ }
-        const out = apiCancel(body, ip);
+        const out = apiCast(body, ip);
         sendJson(res, out.status, out.json);
       });
       return;
