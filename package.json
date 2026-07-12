@@ -1,0 +1,15 @@
+{
+  "name": "cancel-their-cash",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Satirical GOTV site — cancel corporate money in politics with your vote.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
