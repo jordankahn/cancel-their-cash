@@ -58,6 +58,26 @@ function addChip(id) {
   wallet.alloc[id] = chipsOn(id) + 1;
   saveWallet();
   afterWalletChange(id);
+  chipDropFeedback(id);
+}
+
+// A little tactile reward for the core action: pop the seal, float a "+$10",
+// buzz, and flash the wallet bar when the last chip lands.
+function chipDropFeedback(id) {
+  if (navigator.vibrate) navigator.vibrate(12);
+  const row = document.querySelector(`.lrow[data-id="${CSS.escape(id)}"]`);
+  if (!row) return;
+  const seal = row.querySelector('.lrow-seal');
+  if (seal) { seal.classList.remove('is-pop'); void seal.offsetWidth; seal.classList.add('is-pop'); }
+  const tok = document.createElement('span');
+  tok.className = 'chip-fly';
+  tok.textContent = '+$10';
+  row.appendChild(tok);
+  setTimeout(() => tok.remove(), 750);
+  if (remainingChips() === 0) {
+    const bar = $('#walletBar');
+    if (bar) { bar.classList.remove('is-full'); void bar.offsetWidth; bar.classList.add('is-full'); }
+  }
 }
 function removeChip(id) {
   if (wallet.cast || chipsOn(id) <= 0) return;
@@ -88,6 +108,7 @@ function updateRow(id) {
   const my = row.querySelector('.meter-you');
   my.style.left = inkPct.toFixed(2) + '%';
   my.style.width = Math.min(100 - inkPct, youPct).toFixed(2) + '%';
+  my.classList.toggle('has-you', yourPendingUsd(t) > 0);
   row.querySelector('.lrow-status').innerHTML = over
     ? `<span class="over-tag">OVERDRAWN ${usd(-balanceUsd(t))} past zero</span>`
     : `${usd(totalNeutralized(t))} canceled${yours ? ` · <span class="you-tag">you: ${usd(yours * CHIP_USD)}</span>` : ''}`;
@@ -159,7 +180,7 @@ function renderStats(stats, quiet) {
   countTo($('#indexTotal'), stats.total, quiet, usd);
   const live = $('#heroLive');
   if (live) live.innerHTML =
-    `Voters have already placed <strong>${usd(stats.total)}</strong> against <strong>${usd(stats.outstanding)}</strong> of disclosed corporate PAC money. Your $100 is next.`;
+    `Voters have already canceled <strong>${usd(stats.total)}</strong> of <strong>${usd(stats.outstanding)}</strong> in disclosed corporate PAC money. Your $100 is next.`;
 }
 
 function countTo(el, target, quiet, format = fmt) {
@@ -187,7 +208,7 @@ function ago(ms) {
 
 function renderTicker(feed) {
   const items = feed.map((f) =>
-    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A voter')} placed ${usd(f.usd)} on ${escapeHtml(f.target)} · ${ago(f.agoMs)}</span>`
+    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A voter')} canceled ${usd(f.usd)} of ${escapeHtml(f.target)} · ${ago(f.agoMs)}</span>`
   ).join('');
   $('#tickerTrack').innerHTML = items + items;
 }
@@ -267,7 +288,7 @@ function renderRollup(list) {
   rollup.innerHTML =
     `<span class="rollup-name">${escapeHtml(tagLabel(currentTag))} — industry total</span>
      <span class="rollup-fig">OUTSTANDING ${usd(total)}</span>
-     <span class="rollup-fig rollup-neut">NEUTRALIZED ${usd(neut)} · ${((neut / total) * 100).toFixed(1)}%</span>`;
+     <span class="rollup-fig rollup-neut">CANCELED ${usd(neut)} · ${((neut / total) * 100).toFixed(1)}%</span>`;
 }
 
 function renderGrid() {
@@ -309,9 +330,9 @@ function renderGrid() {
         </div>
         <span class="lrow-total">${usd(t.totalUsd)}<span class="lrow-total-lbl">on the books</span></span>
       </div>
-      <div class="meter" role="img" aria-label="${(inkPct + youPct).toFixed(0)}% neutralized">
+      <div class="meter" role="img" aria-label="${(inkPct + youPct).toFixed(0)}% canceled">
         <span class="meter-ink" style="width:${inkPct.toFixed(2)}%"></span>
-        <span class="meter-you" style="left:${inkPct.toFixed(2)}%;width:${Math.min(100 - inkPct, youPct).toFixed(2)}%"></span>
+        <span class="meter-you${youPct > 0 ? ' has-you' : ''}" style="left:${inkPct.toFixed(2)}%;width:${Math.min(100 - inkPct, youPct).toFixed(2)}%"></span>
       </div>
       <div class="lrow-foot">
         <span class="lrow-status">${over
@@ -394,7 +415,6 @@ function wireCastControls() {
     castVote();
   });
   $('#castClose').addEventListener('click', closeReceipt);
-  $('#castReset').addEventListener('click', resetWallet);
   $('#castVeil').addEventListener('click', (e) => { if (e.target === $('#castVeil')) closeReceipt(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#castVeil').hidden) closeReceipt(); });
   $('#certBtn').addEventListener('click', downloadCertificate);
@@ -452,15 +472,6 @@ function openReceipt(fresh) {
   $('#castClose').focus();
 }
 function closeReceipt() { $('#castVeil').hidden = true; document.body.style.overflow = ''; }
-
-function resetWallet() {
-  wallet = { alloc: {}, cast: false, name: wallet.name };
-  saveWallet();
-  closeReceipt();
-  // clear our local pending; server aggregate stays (their cast already counted)
-  renderGrid(); renderWalletUI();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
 
 // ---------------------------------------------------------------------------
 // Returns tables
