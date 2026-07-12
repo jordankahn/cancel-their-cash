@@ -1,4 +1,7 @@
-# Cancel Their Vote — "Your vote is only worth $100"
+# Cancel Their Cash — "Your vote is only worth $100"
+
+> Repo/dir still named `cancel-out-their-vote` / `cancel-their-vote` for now; the
+> product name is **Cancel Their Cash** (corporations don't vote — their money does).
 
 Satirical GOTV site: corporate PACs put real money into federal elections. At the Bureau's
 Official Exchange Rate (1 vote = $100, derived from $15.9B of 2024 federal spending ÷ ~155M

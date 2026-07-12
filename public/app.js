@@ -1,4 +1,4 @@
-/* Cancel Out Their Vote — frontend, chip-allocation edition. No frameworks, no
+/* Cancel Their Cash — frontend, chip-allocation edition. No frameworks, no
    tracking. You hold one $100 vote = ten $10 chips; you allocate them across
    corporate PACs in your own browser, then cast once. */
 'use strict';
@@ -581,7 +581,7 @@ async function drawCertificate() {
   x.font = '700 30px "Archivo Narrow", sans-serif';
   x.fillText('CERTIFICATE OF CANCELLATION — ONE (1) VOTE', 50, 74);
   x.textAlign = 'right'; x.font = '14px "Courier Prime", monospace';
-  x.fillText('FORM CTV-26-M · BUREAU OF BALLOT GRIEVANCES', W - 50, 62);
+  x.fillText('FORM CTC-26 · BUREAU OF BALLOT GRIEVANCES', W - 50, 62);
 
   x.strokeStyle = '#1c5f42'; x.lineWidth = 2; x.strokeRect(28, 28, W - 56, H - 56);
   x.strokeStyle = '#17161a'; x.lineWidth = 1; x.strokeRect(40, 116, W - 80, H - 156);
