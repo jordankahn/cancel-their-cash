@@ -132,8 +132,8 @@ async function boot() {
   buildSpendPicker();
   wireCastControls();
 
-  const [roster, stats, feed] = await Promise.all([
-    api('/api/roster'), api('/api/stats'), api('/api/feed?limit=25'),
+  const [roster, stats] = await Promise.all([
+    api('/api/roster'), api('/api/stats'),
   ]);
   ROSTER = roster.targets;
   ROSTER.forEach((t) => BY_ID.set(t.id, t));
@@ -141,16 +141,14 @@ async function boot() {
   renderStats(stats);
   renderGrid();
   renderBoard();
-  renderTicker(feed.feed);
   renderWalletUI();
   setInterval(refreshLive, 25000);
 }
 
 async function refreshLive() {
   try {
-    const [stats, feed] = await Promise.all([api('/api/stats'), api('/api/feed?limit=25')]);
+    const stats = await api('/api/stats');
     renderStats(stats, true);
-    renderTicker(feed.feed);
     renderBoard();
     // Deliberately do NOT rebuild the ledger grid here — that would destroy a
     // stepper button mid-click and interrupt allocation. The crowd totals in
@@ -197,21 +195,6 @@ function countTo(el, target, quiet, format = fmt) {
     if (k < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
-}
-
-function ago(ms) {
-  const m = Math.floor(ms / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  return h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
-}
-
-function renderTicker(feed) {
-  const items = feed.map((f) =>
-    `<span class="wire-item"><span class="tk-x">✗</span> ${escapeHtml(f.name || 'A voter')} canceled ${usd(f.usd)} of ${escapeHtml(f.target)} · ${ago(f.agoMs)}</span>`
-  ).join('');
-  $('#tickerTrack').innerHTML = items + items;
 }
 
 function escapeHtml(s) {

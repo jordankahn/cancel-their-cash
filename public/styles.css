@@ -129,16 +129,6 @@ button { cursor: pointer; font-family: inherit; color: inherit; }
   .nav-total { padding: 12px 0 2px; }
 }
 
-/* ---------- wire ---------- */
-
-.wire { display: flex; align-items: stretch; border-bottom: 1.5px solid var(--rule); background: var(--paper-2); overflow: hidden; }
-.wire-label { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.12em; padding: 7px 12px 6px; border-right: 1.5px solid var(--rule); color: var(--green); font-weight: 700; white-space: nowrap; }
-.wire-clip { overflow: hidden; flex: 1; display: flex; align-items: center; }
-.wire-track { display: inline-block; white-space: nowrap; font-family: var(--font-mono); font-size: 0.76rem; color: var(--ink-60); animation: wire 120s linear infinite; padding-left: 12px; }
-.wire-track:hover { animation-play-state: paused; }
-.wire-item { margin-right: 3em; }
-.wire-item .tk-x { color: var(--red); font-weight: 700; }
-@keyframes wire { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 #ledger, #returns, #methodology, #fine-print, #top { scroll-margin-top: 68px; }
 
