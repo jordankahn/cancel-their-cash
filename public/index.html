@@ -53,8 +53,10 @@
     <p class="hero-lead">So use it first. You hold one <strong>$100 vote</strong> — ten $10 chips.
     Aim them at the corporate PACs whose influence you most want to cancel. Then make it
     real at the ballot box, the one place their money can't follow.</p>
-    <p class="hero-note">It's a metaphor, not a transaction — no real money, and nobody is paid.
-    The dollars only measure how much corporate influence your vote can cancel out.</p>
+    <span class="hero-tip">
+      <button type="button" class="hero-tip-btn" aria-describedby="heroTipPop">Wait — is this real money?</button>
+      <span class="hero-tip-pop" id="heroTipPop" role="tooltip">It's a metaphor, not a transaction — no real money, and nobody is paid. The dollars only measure how much corporate influence your vote can cancel out.</span>
+    </span>
 
     <div class="hero-wallet" aria-label="Your chips">
       <div class="hw-chips" id="heroChips"></div>
@@ -160,15 +162,15 @@
   <div class="wb-chips" id="walletChips" aria-hidden="true"></div>
   <p class="wb-msg" id="walletMsg">$100 to place</p>
   <input class="wb-name" id="walletName" type="text" maxlength="20" placeholder="Your first name (optional)" autocomplete="off" aria-label="Your first name, optional">
-  <button class="btn btn-cast" id="castBtn" type="button" disabled>Cast my vote</button>
+  <button class="btn btn-cast" id="castBtn" type="button" disabled>Lock in my pledge</button>
 </div>
 
 <!-- ===================== CAST RECEIPT MODAL ===================== -->
 <div class="veil" id="castVeil" hidden>
   <div class="cast-panel" role="dialog" aria-modal="true" aria-labelledby="castHeading">
-    <div class="cast-stamp" aria-hidden="true">Cast</div>
+    <div class="cast-stamp" aria-hidden="true">Pledged</div>
     <p class="cast-kicker">Certificate of Cancellation · Form CTC-26</p>
-    <h2 id="castHeading">Your $100 vote is in.</h2>
+    <h2 id="castHeading">Your pledge is locked in.</h2>
     <ol class="cast-receipt" id="castReceipt"></ol>
     <p class="cast-pending"><strong>Status: pending.</strong> No money changed hands — the dollars just
     measure influence, and your ballot is the only real thing here. This counts the moment you actually vote.</p>

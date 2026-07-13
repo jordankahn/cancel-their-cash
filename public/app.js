@@ -385,7 +385,7 @@ function renderWalletUI() {
   if (wallet.cast) {
     bar.hidden = false;
     bar.classList.add('is-cast');
-    msg.innerHTML = '<strong>Vote cast ✓</strong> — now go make it real.';
+    msg.innerHTML = '<strong>Pledge locked in ✓</strong> — now go make it real at the polls.';
     btn.disabled = false;
     btn.textContent = 'View receipt';
     return;
@@ -395,9 +395,9 @@ function renderWalletUI() {
   bar.hidden = false;
   msg.innerHTML = remUsd > 0
     ? `<strong>${usd(placedUsd)}</strong> placed · ${usd(remUsd)} left`
-    : '<strong>$100 placed</strong> — your vote is fully loaded.';
+    : '<strong>$100 placed</strong> — your pledge is ready.';
   btn.disabled = false;
-  btn.textContent = 'Cast my vote';
+  btn.textContent = 'Lock in my pledge';
 }
 
 // ---------------------------------------------------------------------------
@@ -616,8 +616,8 @@ async function drawCertificate() {
 
   x.save(); x.translate(W - 195, 200); x.rotate(-0.14);
   x.strokeStyle = 'rgba(28,95,66,0.85)'; x.lineWidth = 5; x.strokeRect(-120, -34, 240, 66);
-  x.fillStyle = 'rgba(28,95,66,0.85)'; x.textAlign = 'center'; x.font = '700 34px "Courier Prime", monospace';
-  x.fillText('CAST', 0, 12); x.restore();
+  x.fillStyle = 'rgba(28,95,66,0.85)'; x.textAlign = 'center'; x.font = '700 30px "Courier Prime", monospace';
+  x.fillText('PLEDGED', 0, 11); x.restore();
 
   return cv;
 }
@@ -633,8 +633,8 @@ async function shareCast(btn) {
   const rows = allocationRows();
   const top = rows[0];
   const text = top
-    ? `I aimed my $100 vote at corporate money in politics — ${usd(top.usdv)} against ${top.t.name}${rows.length > 1 ? ` and ${rows.length - 1} more` : ''}. It's a metaphor (no real money), but the vote is real. Yours is worth $100 of their influence too — cancel some, then vote.`
-    : `Your vote is worth $100 of the corporate money in politics. It's a metaphor — no real money — but the vote is real. Cancel some, then vote.`;
+    ? `I pledged my $100 vote against corporate money in politics — ${usd(top.usdv)} aimed at ${top.t.name}${rows.length > 1 ? ` and ${rows.length - 1} more` : ''}. It's a metaphor (no real money) and it only counts if I actually vote. Your vote's worth $100 of their influence too — pledge it, then go vote.`
+    : `Your vote is worth $100 of the corporate money in politics — no real money, just a pledge that only counts when you vote. Pledge yours, then go vote.`;
   try {
     const cv = await drawCertificate();
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
