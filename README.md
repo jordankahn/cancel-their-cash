@@ -12,16 +12,52 @@ browser (localStorage) until cast — no accounts. Votes don't literally cancel 
 the joke, and the fine print says so. Inspired by the
 [Integrity Index](https://integrityindex.us) (unaffiliated; collab wanted).
 
-## Run
+## Run (local)
 
 ```bash
-node server.js            # http://localhost:4680, demo-seeded counters
-DEMO_SEED=0 node server.js  # production: start all counters at zero
-PORT=8080 node server.js    # custom port
+npm install               # installs pg (only needed when DATABASE_URL is set)
+node server.js            # http://localhost:4680, JSON-file store, demo-seeded
+DEMO_SEED=0 node server.js # start counters at zero
+PORT=8080 node server.js   # custom port
 ```
 
-Zero dependencies — plain Node (18+). Static frontend in `public/`, JSON API,
-write-through persistence to `data/state.json` (delete it to reset).
+Node 18+. Static frontend in `public/`. **Storage is pluggable:** with no
+`DATABASE_URL` it uses a write-through JSON file at `data/state.json` (local dev,
+demo seed, no IP dedup so testing is unrestricted). With `DATABASE_URL` set it
+uses Postgres (durable, and enforces one cast per IP per day).
+
+## Deploy on Railway
+
+1. **Create the app service** from this GitHub repo. Railway detects `package.json`
+   and runs `npm start` (`node server.js`). `PORT` is injected automatically.
+2. **Add a PostgreSQL database** (New → Database → PostgreSQL) in the same project.
+3. **Wire the DB into the app** — in the app service's *Variables*, add:
+   - `DATABASE_URL = ${{Postgres.DATABASE_URL}}` (Railway reference to the DB's
+     private URL — no SSL needed).
+   - `HASH_PEPPER = <a long random string>` — salts the daily IP hash. Keep it
+     secret and stable; changing it resets the per-day dedup.
+4. Deploy. On boot the app creates its tables (`counts`, `events`, `casts`) and
+   **starts at real zeros** (the demo seed only applies to the local JSON store).
+
+No `DEMO_SEED` needed in production. If you ever use Railway's *public* DB URL
+instead of the internal reference, add `DATABASE_SSL=1`.
+
+## What it stores
+
+Postgres: dollars per PAC (`counts`), a 7-day rolling `events` log for the wire /
+trending (target, optional first name ≤20 chars, dollar amount), and a `casts`
+dedup table holding only a **salted SHA-256 of the day + IP** (never the raw IP;
+rows older than a day are pruned). No emails, no accounts, no cookies, no
+analytics. The user's in-progress chip allocation and cast-lock live only in their
+own browser (localStorage key `ctv-wallet-v1`).
+
+### Repeat-pledge prevention
+
+Three layers, none perfect (true dedup would need accounts): (1) a client-side
+localStorage cast-lock, (2) a per-IP rate limit (20 casts/min, in memory), and
+(3) **one cast per IP per day** via the `casts` unique key on the salted IP hash.
+Caveat: shared IPs (offices, campuses, mobile carriers) can block real users, and
+VPNs/incognito bypass it — proportional to a deliberately "Unofficial" site.
 
 ## What it stores
 
