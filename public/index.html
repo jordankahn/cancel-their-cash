@@ -18,33 +18,26 @@
 <main class="page" id="top">
 
   <header class="bhead">
-    <div class="bhead-title">
+    <a class="bhead-title" href="#top" aria-label="Cancel Their Cash — home">
       <span class="bhead-seal" aria-hidden="true">✶</span>
-      <div>
-        <h1>Cancel Their Cash</h1>
-        <p class="bhead-sub">Bureau of Ballot Grievances · Arithmetic Desk</p>
-      </div>
-    </div>
-    <div class="bhead-meta">
-      <span>Midterms · Nov 3, 2026</span>
-      <span>Unofficial &amp; mathematically petty</span>
-    </div>
+      <h1>Cancel Their Cash</h1>
+    </a>
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="bhead-nav" id="navLinks" aria-label="Sections">
+      <a href="#top">Home</a>
+      <a href="#ledger">The Money</a>
+      <a href="#returns">Returns</a>
+      <a href="#methodology">Why $100</a>
+      <span class="nav-total"><strong id="indexTotal">$0</strong>&nbsp;canceled</span>
+    </nav>
   </header>
 
   <div class="wire" aria-label="Recent pledges">
     <span class="wire-label">THE WIRE</span>
     <div class="wire-clip"><div class="wire-track" id="tickerTrack"></div></div>
   </div>
-
-  <nav class="index-bar" id="indexBar" aria-label="Section index">
-    <div class="index-links">
-      <a href="#top">Home</a>
-      <a href="#ledger">The Money</a>
-      <a href="#returns">Returns</a>
-      <a href="#methodology">Why $100</a>
-    </div>
-    <span class="index-total"><strong id="indexTotal">$0</strong>&nbsp;canceled</span>
-  </nav>
 
   <!-- ============================ HERO ============================ -->
   <section class="hero" aria-labelledby="heroTitle">
@@ -153,7 +146,7 @@
     </p>
   </footer>
 
-  <div class="bfoot">Your $100 only counts when you vote · vote.gov</div>
+  <div class="bfoot">Election Day · Tue Nov 3, 2026 — your $100 only counts when you vote · vote.gov</div>
 
 </main>
 

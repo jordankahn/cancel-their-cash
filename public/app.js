@@ -128,6 +128,7 @@ async function api(path) {
 
 async function boot() {
   initIndexSpy();
+  initNav();
   buildSpendPicker();
   wireCastControls();
 
@@ -217,8 +218,21 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+function initNav() {
+  const toggle = $('#navToggle'), nav = $('#navLinks');
+  if (!toggle || !nav) return;
+  toggle.addEventListener('click', () => {
+    const open = nav.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  nav.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => {
+    nav.classList.remove('is-open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }));
+}
+
 function initIndexSpy() {
-  const links = [...document.querySelectorAll('.index-links a')];
+  const links = [...document.querySelectorAll('.bhead-nav a')];
   const targets = links.map((a) => document.querySelector(a.getAttribute('href')));
   let ticking = false;
   const update = () => {
